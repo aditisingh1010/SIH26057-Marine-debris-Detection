@@ -1,0 +1,18 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Environment / secrets
+.env
+
+# ML data
+ml/data/raw/
+ml/data/processed/
+
+# Trained models
+*.pt
+*.pth
+
+# Jupyter
+.ipynb_checkpoints/

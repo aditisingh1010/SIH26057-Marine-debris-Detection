@@ -51,7 +51,7 @@ export default function Result() {
     (d) => d.geolocation.latitude != null && d.geolocation.longitude != null,
   ).length
 
-  const modelInfo = getModelMode(run.model)
+  const modelInfo = getModelMode(run.inference_mode, run.model)
   const selectedDet = detections.find((d) => d.id === selected)
 
   return (

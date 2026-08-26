@@ -153,7 +153,7 @@ export default function MapView() {
     )
   }
 
-  const modelInfo = getModelMode(run.model)
+  const modelInfo = getModelMode(run.inference_mode, run.model)
 
   if (located.length === 0) {
     return (

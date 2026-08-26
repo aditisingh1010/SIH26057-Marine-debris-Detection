@@ -47,8 +47,11 @@ export interface ModelModeInfo {
   fullName: string
 }
 
-export function getModelMode(modelName?: string | null): ModelModeInfo {
-  if (!modelName || modelName.toLowerCase().includes('mock') || modelName.toLowerCase().includes('dummy')) {
+export function getModelMode(inferenceMode?: string | null, modelName?: string | null): ModelModeInfo {
+  // Use inference_mode as the authoritative signal
+  const isMock = !inferenceMode || inferenceMode.toLowerCase() === 'mock'
+
+  if (isMock) {
     return {
       isMock: true,
       badgeLabel: 'Mock Mode',
@@ -56,7 +59,7 @@ export function getModelMode(modelName?: string | null): ModelModeInfo {
     }
   }
 
-  const cleanName = modelName.trim()
+  const cleanName = (modelName || 'best.pt').trim()
   const isYolo = cleanName.toLowerCase().includes('yolo')
   const displayModel = isYolo ? cleanName : `YOLOv8n (${cleanName})`
 

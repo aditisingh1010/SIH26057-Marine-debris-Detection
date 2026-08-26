@@ -59,3 +59,9 @@ def test_detect_survey_position_only():
             geo = r.json()["detections"][0]["geolocation"]
             assert geo["status"] == "survey_position_only"
             assert geo["latitude"] == 15.0
+
+
+def test_missing_run_returns_404():
+    with TestClient(app) as client:
+        r = client.get("/api/v1/runs/run_does_not_exist")
+        assert r.status_code == 404

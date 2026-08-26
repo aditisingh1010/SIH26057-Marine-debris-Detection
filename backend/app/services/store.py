@@ -20,9 +20,10 @@ CSV_FIELDS = [
 ]
 
 
-def run_dir(run_id: str) -> Path:
+def run_dir(run_id: str, create: bool = True) -> Path:
     path = settings.storage_dir / "runs" / run_id
-    path.mkdir(parents=True, exist_ok=True)
+    if create:
+        path.mkdir(parents=True, exist_ok=True)
     return path
 
 
@@ -60,7 +61,7 @@ def write_csv(run_id: str, payload: dict) -> Path:
 
 
 def read_json(run_id: str) -> dict | None:
-    path = run_dir(run_id) / "report.json"
+    path = run_dir(run_id, create=False) / "report.json"
     if not path.exists():
         return None
     return json.loads(path.read_text(encoding="utf-8"))

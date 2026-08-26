@@ -128,7 +128,7 @@ def get_run_image(run_id: str) -> FileResponse:
     payload = read_json(run_id)
     if payload is None:
         raise HTTPException(status_code=404, detail="run not found")
-    path = run_dir(run_id) / _safe_filename(payload.get("filename"))
+    path = run_dir(run_id, create=False) / _safe_filename(payload.get("filename"))
     if not path.is_file():
         raise HTTPException(status_code=404, detail="image not found")
     return FileResponse(path)
@@ -136,7 +136,7 @@ def get_run_image(run_id: str) -> FileResponse:
 
 @router.get("/runs/{run_id}/report.json")
 def get_run_report_json(run_id: str) -> FileResponse:
-    path = run_dir(run_id) / "report.json"
+    path = run_dir(run_id, create=False) / "report.json"
     if not path.is_file():
         raise HTTPException(status_code=404, detail="report not found")
     return FileResponse(path, media_type="application/json")
@@ -144,7 +144,7 @@ def get_run_report_json(run_id: str) -> FileResponse:
 
 @router.get("/runs/{run_id}/report.csv")
 def get_run_report_csv(run_id: str) -> FileResponse:
-    path = run_dir(run_id) / "report.csv"
+    path = run_dir(run_id, create=False) / "report.csv"
     if not path.is_file():
         raise HTTPException(status_code=404, detail="report not found")
     return FileResponse(path, media_type="text/csv")

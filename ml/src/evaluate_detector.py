@@ -1,4 +1,4 @@
-﻿"""
+"""
 YOLO Detector Evaluation Script -- ml/src/evaluate_detector.py
 
 Evaluates a trained YOLOv8 model on a YOLO-format dataset split and reports:
@@ -9,7 +9,7 @@ Evaluates a trained YOLOv8 model on a YOLO-format dataset split and reports:
 Results are printed to stdout and optionally saved to a JSON file.
 
 Usage (from project root):
-    python ml/src/evaluate_detector.py --weights C:/Users/medha/runs/detect/train/weights/best.pt --data ml/data/exp_data/filtered_data.yaml
+    python ml/src/evaluate_detector.py --weights best.pt --data ml/data/exp_data/filtered_data.yaml
     python ml/src/evaluate_detector.py --weights ml/data/exp_runs/filtered_model/weights/best.pt --split test --output ml/data/eval_results.json
 """
 
@@ -23,7 +23,7 @@ from typing import Dict, Optional
 
 
 # ---------------------------------------------------------------------------
-DEFAULT_WEIGHTS = r"C:\Users\medha\runs\detect\train\weights\best.pt"
+DEFAULT_WEIGHTS = "best.pt"
 DEFAULT_DATA    = "ml/data/exp_data/filtered_data.yaml"
 DEFAULT_SPLIT   = "test"
 DEFAULT_IMGSZ   = 416

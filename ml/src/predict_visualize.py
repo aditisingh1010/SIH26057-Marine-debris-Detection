@@ -1,4 +1,4 @@
-﻿"""
+"""
 End-to-End Sonar Preprocessing + YOLO Detection & Visualization Pipeline
 File: ml/src/predict_visualize.py
 
@@ -42,7 +42,7 @@ except ImportError:
 
 # ---------------------------------------------------------------------------
 # Default paths and hyperparameters
-DEFAULT_WEIGHTS = r"C:\Users\medha\runs\detect\train\weights\best.pt"
+DEFAULT_WEIGHTS = "best.pt"
 FALLBACK_WEIGHTS = r"ml\data\exp_runs\filtered_model\weights\best.pt"
 DEFAULT_INPUT = "Dataset"
 DEFAULT_OUTPUT = "ml/data/cleaned_predictions"

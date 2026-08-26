@@ -155,7 +155,7 @@ The final YOLOv8n model was trained with the following configuration:
 The trained checkpoint (`best.pt`, 5.9 MB) is saved in the project root and included in the Git repository.
 
 **Trained model:** `best.pt` (project root)
-**Training config:** `C:\Users\medha\runs\detect\train\args.yaml`
+**Training config:** Saved in the local YOLO training run directory (`runs/detect/train/args.yaml`)
 
 ---
 

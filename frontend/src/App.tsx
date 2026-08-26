@@ -4,15 +4,22 @@ import { health } from './api'
 import MapView from './pages/MapView'
 import Result from './pages/Result'
 import Upload from './pages/Upload'
+import './App.css'
 
 export default function App() {
   const location = useLocation()
   const runId = location.pathname.match(/^\/runs\/([^/]+)/)?.[1]
   const [modelOk, setModelOk] = useState<boolean | null>(null)
+  const [modelName, setModelName] = useState<string | null>(null)
 
   useEffect(() => {
     health()
-      .then((h) => setModelOk(Boolean(h.model_loaded)))
+      .then((h) => {
+        setModelOk(Boolean(h.model_loaded))
+        if (h.model_path) {
+          setModelName(h.model_path)
+        }
+      })
       .catch(() => setModelOk(false))
   }, [])
 
@@ -40,7 +47,11 @@ export default function App() {
           ) : null}
         </nav>
         <span className={`health ${modelOk ? 'ok' : modelOk === false ? 'bad' : ''}`}>
-          {modelOk === null ? 'API…' : modelOk ? 'MODEL READY' : 'MODEL OFFLINE'}
+          {modelOk === null
+            ? 'API…'
+            : modelOk
+            ? `REAL MODEL: ${modelName || 'YOLOv8n'}`
+            : 'MODEL OFFLINE'}
         </span>
       </header>
       <main className="main">

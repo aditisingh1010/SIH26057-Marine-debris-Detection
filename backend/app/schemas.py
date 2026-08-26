@@ -22,6 +22,8 @@ class Detection(BaseModel):
     confidence: float
     bbox: BBox
     geolocation: Geolocation
+    risk_level: str = "low"
+    risk_score: float = 0.0
 
     model_config = {"populate_by_name": True}
 
@@ -30,6 +32,7 @@ class RunResult(BaseModel):
     id: str
     filename: str
     model: str
+    inference_mode: str = "standard"
     image_width: int
     image_height: int
     metadata_attached: bool

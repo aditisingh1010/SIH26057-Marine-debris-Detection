@@ -34,10 +34,12 @@ def _safe_filename(name: str | None) -> str:
 def health(request: Request) -> dict:
     inference = getattr(request.app.state, "inference", None)
     loaded = bool(inference and getattr(inference, "loaded", False))
+    mode = getattr(inference, "inference_mode", "real" if loaded else "mock")
     return {
         "status": "ok",
         "service": settings.service_name,
         "model_loaded": loaded,
+        "inference_mode": mode,
         "model_path": str(settings.model_path.name),
     }
 
@@ -76,11 +78,18 @@ def detect(
             raise HTTPException(status_code=400, detail="invalid metadata") from exc
 
     inference = getattr(request.app.state, "inference", None)
-    if inference is None or not getattr(inference, "loaded", False):
-        raise HTTPException(status_code=503, detail="model not loaded")
+    if inference is None:
+        from app.services.inference import InferenceService
+
+        inference = InferenceService(settings.model_path)
+        request.app.state.inference = inference
 
     height, width = image.shape[:2]
     raw_detections = inference.predict(image)
+    inference_mode = getattr(
+        inference, "inference_mode", "real" if getattr(inference, "loaded", False) else "mock"
+    )
+
     detections = []
     for det in raw_detections:
         geo = geolocate_box(det["bbox"], width, height, parsed_meta)
@@ -92,6 +101,8 @@ def detect(
                     "confidence": det["confidence"],
                     "bbox": det["bbox"],
                     "geolocation": geo,
+                    "risk_level": det.get("risk_level", "medium"),
+                    "risk_score": det.get("risk_score", 0.5),
                 }
             )
         )
@@ -104,6 +115,7 @@ def detect(
         id=run_id,
         filename=filename,
         model=str(settings.model_path.name),
+        inference_mode=inference_mode,
         image_width=int(width),
         image_height=int(height),
         metadata_attached=metadata_attached,

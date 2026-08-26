@@ -30,5 +30,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.include_router(router)
+# Mount router at /api/v1 (primary) and bare / for /health convenience
 app.include_router(router, prefix="/api/v1")
+app.include_router(router)  # bare prefix for /health, /detect fallback

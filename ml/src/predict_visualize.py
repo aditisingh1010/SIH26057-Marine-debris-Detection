@@ -34,11 +34,14 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 
-# Import conservative preprocessing module
+# Import conservative preprocessing and risk assessment module
 try:
-    from ml.src.preprocess_sonar import filter_sonar_noise
+    from ml.src.preprocess_sonar import compute_debris_risk, filter_sonar_noise
 except ImportError:
-    from preprocess_sonar import filter_sonar_noise  # Fallback for direct execution
+    from preprocess_sonar import (  # Fallback for direct execution
+        compute_debris_risk,
+        filter_sonar_noise,
+    )
 
 # ---------------------------------------------------------------------------
 # Default paths and hyperparameters
@@ -74,6 +77,54 @@ def resolve_model_path(weights_path: str) -> Path:
     raise FileNotFoundError(f"Model weights file not found: {weights_path}")
 
 
+def extract_detection_records(
+    boxes,
+    names: dict,
+    image_width: int,
+    image_height: int,
+) -> List[dict]:
+    """
+    Extract structured detection records including domain risk scores and levels.
+    """
+    records: List[dict] = []
+    if boxes is None or len(boxes) == 0:
+        return records
+
+    for index, box in enumerate(boxes, start=1):
+        xyxy = box.xyxy[0].cpu().numpy().astype(float)
+        x1, y1, x2, y2 = xyxy
+        bw = max(0.0, x2 - x1)
+        bh = max(0.0, y2 - y1)
+        cls_id = int(box.cls[0].item())
+        conf = float(box.conf[0].item())
+        cls_name = names.get(cls_id, f"debris_{cls_id}")
+
+        bbox_dict = {
+            "x": int(round(x1)),
+            "y": int(round(y1)),
+            "width": int(round(bw)),
+            "height": int(round(bh)),
+        }
+        risk_level, risk_score = compute_debris_risk(
+            bbox=bbox_dict,
+            image_width=image_width,
+            image_height=image_height,
+            confidence=conf,
+            class_name=cls_name,
+        )
+        records.append(
+            {
+                "id": f"det_{index:03d}",
+                "class": cls_name,
+                "confidence": conf,
+                "bbox": bbox_dict,
+                "risk_score": risk_score,
+                "risk_level": risk_level,
+            }
+        )
+    return records
+
+
 def draw_green_detections(
     image: np.ndarray,
     boxes,
@@ -81,8 +132,8 @@ def draw_green_detections(
     pad_ratio: float = 0.05,
 ) -> np.ndarray:
     """
-    Draw clean, thin green bounding boxes with comfortable object spacing
-    and compact, edge-safe confidence badges.
+    Draw clean, thin green bounding boxes with comfortable object spacing,
+    risk-aware categorization, and compact edge-safe badges.
     """
     annotated = image.copy()
     h, w = annotated.shape[:2]
@@ -107,7 +158,17 @@ def draw_green_detections(
         conf = float(box.conf[0].item())
         cls_name = names.get(cls_id, f"debris_{cls_id}")
 
-        label = f"{cls_name} {conf:.2f}"
+        # Compute domain-aware sonar risk score and level
+        bbox_dict = {"width": bw, "height": bh, "x": raw_x1, "y": raw_y1}
+        risk_level, risk_score = compute_debris_risk(
+            bbox=bbox_dict,
+            image_width=w,
+            image_height=h,
+            confidence=conf,
+            class_name=cls_name,
+        )
+
+        label = f"{cls_name} {conf:.2f} [{risk_level.upper()}:{risk_score:.2f}]"
 
         # 2. Refined, thin box line (1px for 416-512, 2px for 1024+)
         thickness = 1 if min(w, h) <= 600 else 2

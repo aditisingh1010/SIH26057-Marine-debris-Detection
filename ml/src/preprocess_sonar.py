@@ -253,6 +253,109 @@ def preprocess_sonar_batch(
     return results
 
 
+# Domain-aware hazard severity weights for sonar marine debris targets
+CLASS_HAZARD_WEIGHTS: dict[str, float] = {
+    # Critical hazards (navigational danger, explosive, toxic, large entrapment)
+    "munition": 1.00,
+    "unexploded_ordnance": 1.00,
+    "hazard": 0.95,
+    "chemical_drum": 0.95,
+    "drum": 0.90,
+    "container": 0.90,
+    "wreck": 0.85,
+    "shipwreck": 0.85,
+    "pipe": 0.85,
+    "pipeline": 0.85,
+    "cable": 0.80,
+    "net": 0.80,
+    "fishing_gear": 0.80,
+    # Moderate hazards (heavy/dense debris, seabed obstacles)
+    "metal": 0.75,
+    "tire": 0.70,
+    "tyre": 0.70,
+    "concrete": 0.70,
+    "debris_1": 0.75,
+    "debris_0": 0.65,
+    "plastic": 0.65,
+    "wood": 0.60,
+    "debris": 0.70,
+}
+
+
+def compute_debris_risk(
+    bbox: dict,
+    image_width: int,
+    image_height: int,
+    confidence: float,
+    class_name: str,
+) -> tuple[str, float]:
+    """
+    Computes domain-aware risk assessment for detected sonar debris targets.
+
+    Combines detection confidence, relative acoustic footprint area,
+    and class hazard severity weighting into a calibrated risk score and level.
+
+    Args:
+        bbox: Dictionary with bounding box dimensions containing 'width' and 'height'
+              (or 'w', 'h', or 'x1','y1','x2','y2').
+        image_width: Total sonar image/swath width in pixels.
+        image_height: Total sonar image/swath height in pixels.
+        confidence: Model prediction confidence score [0.0, 1.0].
+        class_name: Predicted debris category/class label.
+
+    Returns:
+        tuple[str, float]: (risk_level, risk_score) where:
+            - risk_score: float between 0.00 and 1.00 (rounded to 2 decimal places)
+            - risk_level: 'high' (>= 0.70), 'medium' (>= 0.40), or 'low' (< 0.40)
+    """
+    # 1. Extract bounding box dimensions safely
+    width = float(bbox.get("width", bbox.get("w", 0.0)))
+    height = float(bbox.get("height", bbox.get("h", 0.0)))
+    if width <= 0.0 and "x2" in bbox and "x1" in bbox:
+        width = max(0.0, float(bbox["x2"]) - float(bbox["x1"]))
+    if height <= 0.0 and "y2" in bbox and "y1" in bbox:
+        height = max(0.0, float(bbox["y2"]) - float(bbox["y1"]))
+
+    # 2. Calculate relative footprint area
+    total_area = float(image_width * image_height)
+    if total_area > 0:
+        footprint_area = max(0.0, width * height)
+        rel_area = min(1.0, max(0.0, footprint_area / total_area))
+    else:
+        rel_area = 0.0
+
+    # 3. Resolve class hazard weighting
+    cls_key = str(class_name).lower().strip()
+    class_weight = CLASS_HAZARD_WEIGHTS.get(cls_key)
+    if class_weight is None:
+        # Match partial substring keys (e.g. 'submerged_pipe' -> 'pipe')
+        for key, weight in CLASS_HAZARD_WEIGHTS.items():
+            if key in cls_key:
+                class_weight = weight
+                break
+        else:
+            class_weight = 0.70  # Default fallback weight for unknown debris
+
+    # 4. Compute normalized size score
+    # Sonar debris occupying > 5-10% of swath represents substantial navigational hazard
+    size_score = min(1.0, max(0.0, (rel_area ** 0.5) * 3.5))
+
+    # 5. Composite risk calculation
+    conf = min(1.0, max(0.0, float(confidence)))
+    raw_risk = (0.45 * conf) + (0.35 * class_weight) + (0.20 * size_score)
+    risk_score = round(float(np.clip(raw_risk, 0.0, 1.0)), 2)
+
+    # 6. Categorize risk level
+    if risk_score >= 0.70:
+        risk_level = "high"
+    elif risk_score >= 0.40:
+        risk_level = "medium"
+    else:
+        risk_level = "low"
+
+    return risk_level, risk_score
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Sonar image noise-filtering and preprocessing module."

@@ -16,3 +16,15 @@ ml/data/processed/
 
 # Jupyter
 .ipynb_checkpoints/
+# Generated ML experiment & prediction data
+ml/data/exp_data/
+ml/data/exp_runs/
+ml/data/cleaned_predictions/
+ml/data/splits/
+runs/
+
+# Logs & OS artifacts
+*.log
+Thumbs.db
+.DS_Store
+

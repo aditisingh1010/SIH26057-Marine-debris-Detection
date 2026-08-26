@@ -1,0 +1,41 @@
+import type { RunResult } from "./types";
+
+export const API = "http://127.0.0.1:8000";
+
+export async function health() {
+  const r = await fetch(`${API}/health`);
+  if (!r.ok) throw new Error("API unavailable");
+  return r.json();
+}
+
+export async function detect(file: File, metadata?: File | null): Promise<RunResult> {
+  const form = new FormData();
+  form.append("file", file);
+  if (metadata) form.append("metadata", metadata);
+  const r = await fetch(`${API}/api/v1/detect`, { method: "POST", body: form });
+  if (!r.ok) {
+    let detail = r.statusText;
+    try {
+      const body = await r.json();
+      detail = body.detail || JSON.stringify(body);
+    } catch {
+      detail = await r.text();
+    }
+    throw new Error(detail);
+  }
+  return r.json();
+}
+
+export function imageUrl(id: string) {
+  return `${API}/api/v1/runs/${id}/image`;
+}
+
+export function reportUrl(id: string, fmt: "json" | "csv") {
+  return `${API}/api/v1/runs/${id}/report.${fmt}`;
+}
+
+export async function getRun(id: string): Promise<RunResult> {
+  const r = await fetch(`${API}/api/v1/runs/${id}`);
+  if (!r.ok) throw new Error("Run not found");
+  return r.json();
+}

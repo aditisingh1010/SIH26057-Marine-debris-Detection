@@ -1,17 +1,31 @@
+import { useEffect, useState } from 'react'
 import { NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { health } from './api'
 import MapView from './pages/MapView'
 import Result from './pages/Result'
 import Upload from './pages/Upload'
 
-function App() {
+export default function App() {
   const location = useLocation()
-  const runMatch = location.pathname.match(/^\/runs\/([^/]+)/)
-  const runId = runMatch?.[1]
+  const runId = location.pathname.match(/^\/runs\/([^/]+)/)?.[1]
+  const [modelOk, setModelOk] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    health()
+      .then((h) => setModelOk(Boolean(h.model_loaded)))
+      .catch(() => setModelOk(false))
+  }, [])
 
   return (
     <div className="app">
       <header className="topbar">
-        <h1 className="brand">AquaX</h1>
+        <NavLink to="/" className="brand" end>
+          <span className="brand-mark">AX</span>
+          <span>
+            <span className="brand-name">AQUAX</span>
+            <span className="brand-sub">Side-scan survey intelligence</span>
+          </span>
+        </NavLink>
         <nav className="nav">
           <NavLink to="/" end>
             Upload
@@ -25,6 +39,9 @@ function App() {
             </>
           ) : null}
         </nav>
+        <span className={`health ${modelOk ? 'ok' : modelOk === false ? 'bad' : ''}`}>
+          {modelOk === null ? 'API…' : modelOk ? 'MODEL READY' : 'MODEL OFFLINE'}
+        </span>
       </header>
       <main className="main">
         <Routes>
@@ -36,5 +53,3 @@ function App() {
     </div>
   )
 }
-
-export default App

@@ -4,7 +4,7 @@ import { detect } from '../api'
 
 function fileFormat(file: File): string {
   const ext = file.name.split('.').pop()
-  if (ext && ext !== file.name) return ext.toLowerCase()
+  if (ext && ext !== file.name) return ext.toUpperCase()
   return file.type || 'unknown'
 }
 
@@ -36,46 +36,80 @@ export default function Upload() {
   }
 
   return (
-    <section className="panel">
-      <h2>Upload sonar image</h2>
-      <label htmlFor="sonar-file">Sonar image</label>
-      <input
-        id="sonar-file"
-        type="file"
-        accept=".png,.jpg,.jpeg,.tif,.tiff"
-        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-      />
-      <label htmlFor="meta-file">Metadata (optional)</label>
-      <input
-        id="meta-file"
-        type="file"
-        accept=".json,.csv"
-        onChange={(e) => setMetadata(e.target.files?.[0] ?? null)}
-      />
+    <div>
+      <div className="hero">
+        <p className="kicker">SIH26057 · Side-scan sonar</p>
+        <h1>Ingest a seafloor strip. Get boxed anomalies and a report.</h1>
+        <p className="lede">
+          AquaX runs your trained detector on SSS imagery — not camera photos.
+          Location is written only when navigation metadata is attached. Coordinates
+          are never invented.
+        </p>
+      </div>
 
-      {file ? (
-        <ul className="meta-list">
-          <li>
-            Filename: <strong>{file.name}</strong>
-          </li>
-          <li>
-            Format: <strong>{fileFormat(file)}</strong>
-          </li>
-          <li>
-            Size: <strong>{fileSize(file.size)}</strong>
-          </li>
-          <li>
-            Metadata: <strong>{metadata ? `attached (${metadata.name})` : 'not attached'}</strong>
-          </li>
-        </ul>
-      ) : (
-        <p className="muted">Select a PNG, JPEG, or TIFF sonar image to run detection.</p>
-      )}
+      <div className="grid-2">
+        <section className="panel">
+          <label className="drop">
+            <input
+              type="file"
+              accept=".png,.jpg,.jpeg,.tif,.tiff"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            />
+            <strong>{file ? 'Replace sonar image' : 'Drop or choose sonar image'}</strong>
+            <span className="muted">PNG, JPEG, or TIFF</span>
+          </label>
 
-      <button type="button" onClick={onRun} disabled={!file || busy}>
-        {busy ? 'Running detection…' : 'Run detection'}
-      </button>
-      {error ? <p className="error">{error}</p> : null}
-    </section>
+          {file ? (
+            <div className="meta-grid">
+              <div>
+                <span>Filename</span>
+                <strong>{file.name}</strong>
+              </div>
+              <div>
+                <span>Format</span>
+                <strong>{fileFormat(file)}</strong>
+              </div>
+              <div>
+                <span>Size</span>
+                <strong>{fileSize(file.size)}</strong>
+              </div>
+              <div>
+                <span>Metadata</span>
+                <strong>{metadata ? metadata.name : 'Not attached'}</strong>
+              </div>
+            </div>
+          ) : (
+            <p className="muted">No file selected yet.</p>
+          )}
+
+          <label className="muted" htmlFor="meta-file">
+            Optional JSON/CSV navigation metadata (lat, lon)
+          </label>
+          <input
+            id="meta-file"
+            type="file"
+            accept=".json,.csv"
+            onChange={(e) => setMetadata(e.target.files?.[0] ?? null)}
+          />
+
+          <div>
+            <button type="button" onClick={onRun} disabled={!file || busy}>
+              {busy ? 'Running detection…' : 'Run detection'}
+            </button>
+          </div>
+          {error ? <p className="error">{error}</p> : null}
+        </section>
+
+        <aside className="panel">
+          <p className="kicker">What you get</p>
+          <h2 style={{ marginTop: 0 }}>Report a survey team can use</h2>
+          <p className="muted">
+            Bounding boxes on the sonar image, class and confidence from{' '}
+            <code>best.pt</code>, JSON and CSV download. Map markers appear only
+            when the metadata file contains real coordinates.
+          </p>
+        </aside>
+      </div>
+    </div>
   )
 }

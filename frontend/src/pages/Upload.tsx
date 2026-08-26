@@ -26,6 +26,7 @@ export default function Upload() {
   const navigate = useNavigate()
   const [file, setFile] = useState<File | null>(null)
   const [metadata, setMetadata] = useState<File | null>(null)
+  const [confThreshold, setConfThreshold] = useState<number>(0.15)
   const [busy, setBusy] = useState(false)
   const [stepIndex, setStepIndex] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -49,7 +50,7 @@ export default function Upload() {
     setBusy(true)
     setError(null)
     try {
-      const run = await detect(file, metadata)
+      const run = await detect(file, metadata, confThreshold)
       navigate(`/runs/${run.id}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -182,15 +183,41 @@ export default function Upload() {
                     <line x1="12" y1="8" x2="12" y2="12" />
                     <line x1="12" y1="16" x2="12.01" y2="16" />
                   </svg>
-                  Optional Navigation Metadata (.json / .csv with lat, lon coordinates)
+                  Optional Navigation Metadata (.json / .csv / .xtf with lat, lon coordinates)
                 </label>
                 <input
                   id="meta-file"
                   type="file"
-                  accept=".json,.csv"
+                  accept=".json,.csv,.xtf"
                   className="metadata-input"
                   onChange={(e) => setMetadata(e.target.files?.[0] ?? null)}
                 />
+              </div>
+
+              <div className="sensitivity-section" style={{ marginTop: '16px', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.85rem' }}>
+                  <label htmlFor="conf-slider" style={{ fontWeight: 600, color: 'var(--text-1)' }}>
+                    Confidence Threshold:
+                  </label>
+                  <span className="mono-text" style={{ color: 'var(--teal-2)', fontWeight: 700 }}>
+                    {(confThreshold * 100).toFixed(0)}%
+                  </span>
+                </div>
+                <input
+                  id="conf-slider"
+                  type="range"
+                  min="0.05"
+                  max="0.50"
+                  step="0.05"
+                  value={confThreshold}
+                  onChange={(e) => setConfThreshold(parseFloat(e.target.value))}
+                  style={{ width: '100%', accentColor: 'var(--teal)' }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--muted)', marginTop: '2px' }}>
+                  <span>5% (High sensitivity)</span>
+                  <span>Default (15%)</span>
+                  <span>50% (Strict)</span>
+                </div>
               </div>
 
               <div className="submit-section">

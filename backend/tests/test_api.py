@@ -156,3 +156,70 @@ def test_missing_run_returns_404():
         r = client.get("/api/v1/runs/run_does_not_exist")
         assert r.status_code == 404
 
+
+def test_system_info_endpoint():
+    with TestClient(app) as client:
+        r = client.get("/api/v1/info")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["version"] == "1.0.0"
+        assert body["model"] == "YOLOv8n"
+        assert isinstance(body["classes"], list)
+        assert len(body["classes"]) >= 1
+        assert "metadata_formats" in body
+        assert "confidence_threshold" in body
+
+
+def test_runs_history():
+    with TestClient(app) as client:
+        # Create a run
+        client.post(
+            "/api/v1/detect",
+            files={"file": ("sonar_hist.png", _png_bytes(), "image/png")},
+        )
+        r = client.get("/api/v1/runs")
+        assert r.status_code == 200
+        runs = r.json()
+        assert isinstance(runs, list)
+        assert len(runs) >= 1
+        assert "id" in runs[0]
+        assert "filename" in runs[0]
+        assert "inference_mode" in runs[0]
+        assert "detection_count" in runs[0]
+
+
+def test_batch_detect_single_and_multiple():
+    with TestClient(app) as client:
+        r = client.post(
+            "/api/v1/detect/batch",
+            files=[
+                ("files", ("img1.png", _png_bytes(), "image/png")),
+                ("files", ("img2.png", _png_bytes(), "image/png")),
+            ],
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert body["total"] == 2
+        assert body["failed"] == 0
+        assert len(body["runs"]) == 2
+        assert body["runs"][0]["image_width"] == 96
+
+
+def test_batch_detect_too_many_files_fails():
+    with TestClient(app) as client:
+        files = [("files", (f"img_{i}.png", _png_bytes(), "image/png")) for i in range(11)]
+        r = client.post("/api/v1/detect/batch", files=files)
+        assert r.status_code == 400
+
+
+def test_detect_shadow_zones_and_conf_threshold():
+    with TestClient(app) as client:
+        r = client.post(
+            "/api/v1/detect?conf_threshold=0.10",
+            files={"file": ("sonar_shadow.png", _png_bytes(), "image/png")},
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert "shadow_zones" in body
+        assert isinstance(body["shadow_zones"], list)
+

@@ -269,6 +269,7 @@ CLASS_HAZARD_WEIGHTS: dict[str, float] = {
     "cable": 0.80,
     "net": 0.80,
     "fishing_gear": 0.80,
+    "ghost_net": 0.80,
     # Moderate hazards (heavy/dense debris, seabed obstacles)
     "metal": 0.75,
     "tire": 0.70,
@@ -276,10 +277,90 @@ CLASS_HAZARD_WEIGHTS: dict[str, float] = {
     "concrete": 0.70,
     "debris_1": 0.75,
     "debris_0": 0.65,
+    # Renamed class names (SIH taxonomy)
+    "marine_debris": 0.75,
+    "seabed_object": 0.70,
     "plastic": 0.65,
     "wood": 0.60,
     "debris": 0.70,
 }
+
+
+def detect_acoustic_shadows(
+    image_bgr: np.ndarray,
+    highlight_thresh: int = 175,
+    shadow_thresh: int = 65,
+    min_area: int = 200,
+    max_zones: int = 10,
+) -> list[dict]:
+    """
+    Experimental heuristic: detect acoustic shadow zones in side-scan sonar imagery.
+
+    In SSS imagery, real objects produce a bright highlight return immediately
+    adjacent to a dark acoustic shadow. This function identifies candidate
+    shadow regions by finding dark areas adjacent to bright highlight returns.
+
+    This is a heuristic only — it will produce false positives on natural
+    seafloor features. Results should NOT be used as definitive detections.
+
+    Args:
+        image_bgr: Input sonar image in BGR format.
+        highlight_thresh: Pixel intensity >= this is considered a highlight (0-255).
+        shadow_thresh: Pixel intensity <= this is considered shadow (0-255).
+        min_area: Minimum bounding box area in pixels to include a shadow zone.
+        max_zones: Maximum number of shadow zones to return.
+
+    Returns:
+        List of dicts: {x, y, width, height, adjacent_to_highlight}
+    """
+    if image_bgr is None or image_bgr.size == 0:
+        return []
+
+    try:
+        gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY) if len(image_bgr.shape) == 3 else image_bgr.copy()
+
+        # Find bright highlight returns
+        _, highlight_mask = cv2.threshold(gray, highlight_thresh, 255, cv2.THRESH_BINARY)
+
+        # Dilate highlights to find adjacent regions
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 5))
+        dilated_highlights = cv2.dilate(highlight_mask, kernel, iterations=2)
+
+        # Find dark shadow regions
+        _, shadow_mask = cv2.threshold(gray, shadow_thresh, 255, cv2.THRESH_BINARY_INV)
+
+        # Shadow zones adjacent to highlights: intersection of shadow + dilated highlight
+        adjacent_shadows = cv2.bitwise_and(shadow_mask, dilated_highlights)
+
+        # Also include general shadow regions (not necessarily adjacent)
+        general_shadows = shadow_mask
+
+        # Find contours of adjacent shadow zones
+        contours, _ = cv2.findContours(adjacent_shadows, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        zones: list[dict] = []
+        for cnt in contours:
+            x, y, w, h = cv2.boundingRect(cnt)
+            area = w * h
+            if area < min_area:
+                continue
+            zones.append({
+                "x": int(x),
+                "y": int(y),
+                "width": int(w),
+                "height": int(h),
+                "adjacent_to_highlight": True,
+            })
+            if len(zones) >= max_zones:
+                break
+
+        # Sort by area descending
+        zones.sort(key=lambda z: z["width"] * z["height"], reverse=True)
+        return zones[:max_zones]
+
+    except Exception:
+        return []
+
 
 
 def compute_debris_risk(

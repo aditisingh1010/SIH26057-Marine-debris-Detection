@@ -112,7 +112,10 @@ def _copy_split(
 
     if preprocess:
         # Import here to avoid hard dependency when preprocess=False
-        from ml.src.preprocess_sonar import preprocess_sonar_image  # noqa: PLC0415
+        try:
+            from ml.src.preprocess_sonar import preprocess_sonar_image  # noqa: PLC0415
+        except ModuleNotFoundError:
+            from preprocess_sonar import preprocess_sonar_image  # noqa: PLC0415
 
     for img_path, lbl_path in split_samples:
         if preprocess:

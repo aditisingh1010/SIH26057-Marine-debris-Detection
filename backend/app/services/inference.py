@@ -13,10 +13,13 @@ logger = logging.getLogger(__name__)
 
 # Attempt to load domain preprocessing and risk calculation utilities
 try:
-    from ml.src.preprocess_sonar import compute_debris_risk, filter_sonar_noise
+    from ml.src.preprocess_sonar import compute_debris_risk, detect_acoustic_shadows, filter_sonar_noise
 except ImportError:
     try:
-        from preprocess_sonar import compute_debris_risk, filter_sonar_noise
+        from preprocess_sonar import compute_debris_risk, detect_acoustic_shadows, filter_sonar_noise
+    except ImportError:
+        def detect_acoustic_shadows(image_bgr: np.ndarray, **kwargs: Any) -> list:
+            return []
     except ImportError:
         def filter_sonar_noise(image: np.ndarray, **kwargs: Any) -> np.ndarray:
             return image
@@ -174,11 +177,18 @@ class InferenceService:
             )
         return detections
 
-    def predict(self, image_bgr: np.ndarray) -> list[dict[str, Any]]:
+    def predict(self, image_bgr: np.ndarray, conf: float = 0.15) -> list[dict[str, Any]]:
         """
         Runs object detection inference on a BGR image.
         If real weights are loaded, runs sonar noise filtering + YOLOv8 detection.
         Otherwise, runs deterministic mock detection.
+
+        If a YOLOv8-seg model is loaded, mask_points will contain polygon coordinates
+        normalized to [0, 1]. With a detection-only model, mask_points will be None.
+
+        Args:
+            image_bgr: Input image in BGR format.
+            conf: Detection confidence threshold (default 0.15).
         """
         height, width = image_bgr.shape[:2]
 
@@ -188,7 +198,7 @@ class InferenceService:
         try:
             cleaned = filter_sonar_noise(image_bgr)
             results = self.model.predict(
-                source=cleaned, conf=0.25, imgsz=416, verbose=False
+                source=cleaned, conf=conf, imgsz=416, verbose=False
             )
         except Exception as exc:
             logger.error("Real inference execution failed: %s. Falling back to mock.", exc)
@@ -201,6 +211,9 @@ class InferenceService:
         boxes = results[0].boxes
         if boxes is None or len(boxes) == 0:
             return detections
+
+        # Check for segmentation masks (YOLOv8-seg models)
+        masks = getattr(results[0], "masks", None)
 
         for index, box in enumerate(boxes, start=1):
             xyxy = box.xyxy[0].cpu().numpy()
@@ -221,23 +234,51 @@ class InferenceService:
             box_h = max(0, min(height - y, box_h))
             cls_id = int(box.cls[0].item())
             class_name = self.names.get(cls_id, f"debris_{cls_id}")
-            conf = float(box.conf[0].item())
+            conf_val = float(box.conf[0].item())
             bbox = {"x": x, "y": y, "width": box_w, "height": box_h}
             risk_level, risk_score = _safe_compute_risk(
                 bbox=bbox,
                 width=width,
                 height=height,
-                conf=conf,
+                conf=conf_val,
                 class_name=class_name,
             )
+
+            # Extract segmentation mask polygon if available
+            mask_points: list[list[float]] | None = None
+            if masks is not None:
+                try:
+                    mask_xy = masks.xy[index - 1]
+                    if mask_xy is not None and len(mask_xy) > 0:
+                        # Normalize to [0, 1]
+                        mask_points = [
+                            [float(pt[0]) / width, float(pt[1]) / height]
+                            for pt in mask_xy
+                        ]
+                except Exception:
+                    mask_points = None
+
             detections.append(
                 {
                     "id": f"det_{index:03d}",
                     "class": class_name,
-                    "confidence": round(conf, 4),
+                    "confidence": round(conf_val, 4),
                     "bbox": bbox,
                     "risk_level": risk_level,
                     "risk_score": risk_score,
+                    "mask_points": mask_points,
                 }
             )
         return detections
+
+    def shadow_zones(self, image_bgr: np.ndarray) -> list[dict]:
+        """
+        Returns acoustic shadow zones for the given sonar image.
+        Uses the heuristic from preprocess_sonar.detect_acoustic_shadows().
+        Always returns a list (empty if detection fails or import unavailable).
+        """
+        try:
+            return detect_acoustic_shadows(image_bgr)
+        except Exception as exc:
+            logger.warning("Shadow zone detection failed: %s", exc)
+            return []

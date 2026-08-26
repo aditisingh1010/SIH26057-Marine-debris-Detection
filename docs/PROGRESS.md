@@ -14,22 +14,22 @@
 - [x] requirements.txt created
 
 ## Phase 3 — Dataset & Feasibility
-- [ ] Side-scan sonar dataset identified
-- [ ] Dataset downloaded
-- [ ] Dataset structure inspected
-- [ ] Annotations inspected
-- [ ] First sonar images visualized
+- [x] Side-scan sonar dataset identified
+- [x] Dataset downloaded
+- [x] Dataset structure inspected
+- [x] Annotations inspected
+- [x] First sonar images visualized
 
 ## Phase 4 — Baseline AI Model
-- [ ] Dataset prepared
-- [ ] Baseline detector trained
-- [ ] Model evaluated
-- [ ] False positives analysed
-- [ ] Sonar-specific preprocessing tested
+- [x] Dataset prepared
+- [x] Baseline detector trained
+- [x] Model evaluated
+- [x] False positives analysed
+- [x] Sonar-specific preprocessing tested
 
 ## Phase 5 — Intelligence
 - [ ] Confidence scoring
-- [ ] Noise filtering
+- [x] Noise filtering
 - [ ] Debris classification
 - [ ] Geolocation
 - [ ] Risk / priority scoring

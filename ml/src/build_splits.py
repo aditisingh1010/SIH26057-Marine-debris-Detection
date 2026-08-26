@@ -1,4 +1,4 @@
-﻿"""
+"""
 Dataset Split Builder -- ml/src/build_splits.py
 
 Reads the raw Dataset/ directory (with per-year survey sub-folders), applies
@@ -116,18 +116,14 @@ def _copy_split(
 
     for img_path, lbl_path in split_samples:
         if preprocess:
-            # preprocess_sonar_image saves to a temp dir; we then move it
-            import tempfile  # noqa: PLC0415
-            with tempfile.TemporaryDirectory() as tmp:
-                out_img, _ = preprocess_sonar_image(
-                    input_image_path=img_path,
-                    output_dir=tmp,
-                    copy_label=False,
-                    diameter=diameter,
-                    sigma_color=sigma_color,
-                    sigma_space=sigma_space,
-                )
-                shutil.copy2(str(out_img), str(img_dst / img_path.name))
+            preprocess_sonar_image(
+                input_image_path=img_path,
+                output_dir=img_dst,
+                copy_label=False,
+                diameter=diameter,
+                sigma_color=sigma_color,
+                sigma_space=sigma_space,
+            )
         else:
             shutil.copy2(str(img_path), str(img_dst / img_path.name))
 

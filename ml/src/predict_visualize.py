@@ -1,4 +1,4 @@
-﻿"""
+"""
 End-to-End Sonar Preprocessing + YOLO Detection & Visualization Pipeline
 File: ml/src/predict_visualize.py
 
@@ -42,8 +42,12 @@ except ImportError:
 
 # ---------------------------------------------------------------------------
 # Default paths and hyperparameters
-DEFAULT_WEIGHTS = r"C:\Users\medha\runs\detect\train\weights\best.pt"
-FALLBACK_WEIGHTS = r"ml\data\exp_runs\filtered_model\weights\best.pt"
+DEFAULT_WEIGHTS = "best.pt"
+FALLBACK_CANDIDATES = [
+    "best.pt",
+    r"ml/data/exp_runs/sonar_detector/weights/best.pt",
+    r"ml/data/exp_runs/filtered_model/weights/best.pt",
+]
 DEFAULT_INPUT = "Dataset"
 DEFAULT_OUTPUT = "ml/data/cleaned_predictions"
 DEFAULT_CONF = 0.25
@@ -62,10 +66,11 @@ def resolve_model_path(weights_path: str) -> Path:
     p = Path(weights_path)
     if p.is_file():
         return p.resolve()
-    fallback = Path(FALLBACK_WEIGHTS)
-    if fallback.is_file():
-        print(f"[pipeline] Primary weights not found. Using fallback: {fallback.resolve()}")
-        return fallback.resolve()
+    for candidate in FALLBACK_CANDIDATES:
+        cand_path = Path(candidate)
+        if cand_path.is_file():
+            print(f"[pipeline] Specified weights not found. Using fallback: {cand_path.resolve()}")
+            return cand_path.resolve()
     raise FileNotFoundError(f"Model weights file not found: {weights_path}")
 
 

@@ -14,34 +14,34 @@
 - [x] requirements.txt created
 
 ## Phase 3 — Dataset & Feasibility
-- [ ] Side-scan sonar dataset identified
-- [ ] Dataset downloaded
-- [ ] Dataset structure inspected
-- [ ] Annotations inspected
-- [ ] First sonar images visualized
+- [x] Side-scan sonar dataset identified
+- [x] Dataset downloaded
+- [x] Dataset structure inspected
+- [x] Annotations inspected
+- [x] First sonar images visualized
 
 ## Phase 4 — Baseline AI Model
-- [ ] Dataset prepared
-- [ ] Baseline detector trained
-- [ ] Model evaluated
-- [ ] False positives analysed
-- [ ] Sonar-specific preprocessing tested
+- [x] Dataset prepared
+- [x] Baseline detector trained
+- [x] Model evaluated
+- [x] False positives analysed
+- [x] Sonar-specific preprocessing tested
 
 ## Phase 5 — Intelligence
-- [ ] Confidence scoring
-- [ ] Noise filtering
+- [ ] Confidence scoring (YOLO score shown; not calibrated)
+- [x] Noise filtering
 - [ ] Debris classification
-- [ ] Geolocation
+- [x] Geolocation (only when metadata exists; never invented)
 - [ ] Risk / priority scoring
 
 ## Phase 6 — Product
-- [ ] FastAPI backend
-- [ ] React frontend
-- [ ] Image upload
-- [ ] Detection visualization
+- [x] FastAPI backend
+- [x] React frontend
+- [x] Image upload
+- [x] Detection visualization
 - [ ] Analytics dashboard
-- [ ] Interactive map
-- [ ] Report generation
+- [x] Interactive map (empty unless lat/lon metadata is attached)
+- [x] Report generation
 
 ## Phase 7 — SIH Finalisation
 - [ ] End-to-end integration

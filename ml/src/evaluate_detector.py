@@ -24,7 +24,7 @@ from typing import Dict, Optional
 
 # ---------------------------------------------------------------------------
 DEFAULT_WEIGHTS = "best.pt"
-DEFAULT_DATA    = "ml/data/exp_data/filtered_data.yaml"
+DEFAULT_DATA    = "ml/data/splits/dataset.yaml"
 DEFAULT_SPLIT   = "test"
 DEFAULT_IMGSZ   = 416
 DEFAULT_CONF    = 0.25

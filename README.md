@@ -1,50 +1,70 @@
-# 🌊 SIH26057 — Marine Debris & Anomaly Detection
+# SIH26057 — Marine Debris Detection
 
-### AI-Powered Underwater Marine Debris Detection using Side-Scan Sonar Imagery
+AI-assisted detection of marine debris in side-scan sonar (SSS) imagery.
+Smart India Hackathon 2026 — Problem Statement SIH26057.
 
-> Smart India Hackathon 2026 — Problem Statement SIH26057
+## What it does
 
-📌 Overview
+Runs a YOLOv8n object detector on side-scan sonar waterfall images to identify potential debris on the seafloor. Outputs bounding boxes, confidence scores, risk classification, and a geolocation estimate when navigation metadata is provided.
 
-SIH26057 focuses on developing an AI-powered system for automated detection of underwater marine debris and anomalies using **Side-Scan Sonar (SSS) imagery**.
+Coordinates are only shown when real survey metadata (lat, lon, heading, pixel_size_m) is attached. They are never invented.
 
-The system aims to assist marine survey and environmental monitoring teams by automatically identifying potential anthropogenic objects in sonar imagery and presenting the results through an intuitive analytical dashboard.
+## Stack
 
+- **ML:** YOLOv8n (Ultralytics), trained on 140 labeled sonar images
+- **Backend:** FastAPI + Uvicorn
+- **Frontend:** React + TypeScript + Vite + Leaflet
 
-## 🎯 Problem
+## Running
 
-Manual analysis of side-scan sonar imagery can be time-consuming and challenging, particularly when dealing with:
+### Backend
 
-- Large volumes of sonar imagery
-- Speckle and acoustic noise
-- Acoustic shadows
-- Natural seafloor formations that resemble objects
-- Difficulty identifying potential marine debris consistently
+```powershell
+# From repo root
+$env:PYTHONPATH = "backend;ml\src"
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
 
-An automated and reliable detection system can help reduce manual effort and support faster identification of areas requiring further inspection.
+Check: `http://127.0.0.1:8000/health`
 
+### Frontend
 
-## 💡 Our Approach
+```powershell
+cd frontend
+npm install
+npm run dev
+```
 
-Our proposed system will follow an end-to-end pipeline:
+Open: `http://localhost:5173`
 
-```text
-Side-Scan Sonar Imagery
-          ↓
-     Preprocessing
-          ↓
-    AI Detection /
-     Segmentation
-          ↓
- Confidence Scoring
-          ↓
-  Noise / False Positive
-       Filtering
-          ↓
- Object Classification
-          ↓
-   Geolocation & Analysis
-          ↓
- Risk / Priority Assessment
-          ↓
- Interactive Dashboard
+### Tests
+
+```powershell
+python -m pytest backend/tests/ -v
+```
+
+## ML scripts
+
+```bash
+# Audit dataset
+python ml/src/data_audit.py --dataset-root Dataset
+
+# Build train/val/test splits
+python ml/src/build_splits.py --dataset-root Dataset --output-dir ml/data/splits/processed --yaml ml/data/splits/dataset.yaml --preprocess
+
+# Run detection on all images
+python ml/src/predict_visualize.py --weights best.pt --input Dataset --output ml/data/cleaned_predictions
+
+# Evaluate model
+python ml/src/evaluate_detector.py --weights best.pt --data ml/data/splits/dataset.yaml --split test
+```
+
+## Optional navigation metadata
+
+Pass a JSON file alongside the image upload:
+
+```json
+{"latitude": 15.0, "longitude": 73.0, "heading": 45.0, "pixel_size_m": 0.05}
+```
+
+Without this file, the map view shows "no geolocation" — no coordinates are guessed.

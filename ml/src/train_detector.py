@@ -1,4 +1,4 @@
-﻿"""
+"""
 YOLO Detector Training Script -- ml/src/train_detector.py
 
 Trains a YOLOv8 object detection model on a pre-built YOLO-format dataset.
@@ -24,7 +24,7 @@ DEFAULT_BATCH   = 16
 DEFAULT_SEED    = 42
 DEFAULT_PROJECT = "ml/data/exp_runs"
 DEFAULT_NAME    = "sonar_detector"
-DEFAULT_DATA    = "ml/data/exp_data/filtered_data.yaml"
+DEFAULT_DATA    = "ml/data/splits/dataset.yaml"
 
 
 # ---------------------------------------------------------------------------

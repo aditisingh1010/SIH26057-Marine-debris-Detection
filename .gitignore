@@ -28,3 +28,8 @@ runs/
 Thumbs.db
 .DS_Store
 
+# App runtime
+storage/
+frontend/node_modules/
+frontend/dist/
+

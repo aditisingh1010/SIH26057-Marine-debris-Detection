@@ -15,11 +15,11 @@ function fileSize(bytes: number): string {
 }
 
 const PROCESSING_STEPS = [
-  'Ingesting acoustic raw payload & navigation headers...',
-  'Applying bilateral sonar despeckling filter...',
-  'Executing YOLOv8n marine debris detector (416×416)...',
-  'Computing seafloor ray-traced geolocation coordinates...',
-  'Assembling GIS survey report & artifact JSON/CSV...',
+  'Loading image...',
+  'Preprocessing sonar image...',
+  'Running YOLOv8n detection...',
+  'Computing geolocation...',
+  'Building report...',
 ]
 
 export default function Upload() {
@@ -87,11 +87,10 @@ export default function Upload() {
   return (
     <div>
       <div className="hero">
-        <p className="kicker">SIH26057 · Side-scan sonar AI Intelligence</p>
-        <h1>Ingest seafloor acoustic imagery. Detect debris with deep precision.</h1>
+        <p className="kicker">SIH26057 · Side-scan sonar detection</p>
+        <h1>Upload a sonar image to detect marine debris.</h1>
         <p className="lede">
-          AquaX executes custom-trained YOLOv8n models directly on side-scan sonar waterfall data.
-          Geographic coordinates are strictly computed from authentic navigation metadata — never fabricated or hallucinated.
+          Runs YOLOv8n on side-scan sonar imagery. Coordinates are only shown when real navigation metadata is provided — never invented.
         </p>
       </div>
 
@@ -218,28 +217,28 @@ export default function Upload() {
         </section>
 
         <aside className="panel info-panel">
-          <p className="kicker">Pipeline Specifications</p>
-          <h2 style={{ marginTop: 0 }}>High-Fidelity Marine Debris Analysis</h2>
+          <p className="kicker">Pipeline</p>
+          <h2 style={{ marginTop: 0 }}>How it works</h2>
           <ul className="feature-list">
             <li>
-              <strong>Bilateral Acoustic Filtering:</strong> Preserves acoustic shadows while suppressing high-frequency water-column noise.
+              <strong>Preprocessing:</strong> Conservative bilateral filter to reduce sonar speckle without destroying acoustic features.
             </li>
             <li>
-              <strong>Real Detector (YOLOv8n):</strong> Deep feature extraction on 416×416 spatial resolution specifically calibrated for side-scan artifacts.
+              <strong>Detection:</strong> YOLOv8n trained on 140 labeled sonar images. Runs at 416×416.
             </li>
             <li>
-              <strong>Ray-traced Geolocation:</strong> Translates pixel coordinates (x, y) into geodetic WGS84 coordinates when survey telemetry is provided.
+              <strong>Geolocation:</strong> Pixel coordinates mapped to WGS84 only when survey metadata (lat, lon, heading, pixel size) is attached.
             </li>
             <li>
-              <strong>Complete Audit Reports:</strong> Generates immediate JSON machine-readable structures and CSV tabular datasets.
+              <strong>Reports:</strong> JSON and CSV exports for every run.
             </li>
           </ul>
 
           <div className="strict-notice">
             <div className="notice-icon">⚓</div>
             <div>
-              <strong>Strict Data Honesty Policy</strong>
-              <p>AquaX will never plot synthetic pins or guess coordinates. If no navigation metadata is supplied, geolocation is explicitly marked as unavailable.</p>
+              <strong>No fake coordinates</strong>
+              <p>If no navigation metadata is supplied, geolocation is marked unavailable. No pins are invented.</p>
             </div>
           </div>
         </aside>

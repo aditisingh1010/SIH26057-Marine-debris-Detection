@@ -59,7 +59,7 @@ export default function Result() {
       <div className="result-header">
         <div>
           <div className="header-meta-row">
-            <span className="kicker">Sonar Analysis Result</span>
+            <span className="kicker">Detection Result</span>
             <span className={`mode-badge ${modelInfo.isMock ? 'mode-badge-mock' : 'mode-badge-real'}`}>
               <span className="mode-dot" />
               {modelInfo.badgeLabel}
@@ -67,10 +67,10 @@ export default function Result() {
           </div>
           <h1 className="result-filename">{run.filename}</h1>
           <p className="lede">
-            Inference performed on {run.image_width} × {run.image_height} px raw acoustic waterfall.
-            Navigation telemetry:{' '}
+            {run.image_width} × {run.image_height} px.{' '}
+            Navigation:{' '}
             <strong className={run.metadata_attached ? 'text-teal' : 'text-amber'}>
-              {run.metadata_attached ? 'Attached & Georeferenced' : 'No navigation metadata (Honest status: unavailable)'}
+              {run.metadata_attached ? 'Metadata attached' : 'No metadata — geolocation unavailable'}
             </strong>.
           </p>
         </div>
@@ -118,16 +118,16 @@ export default function Result() {
         <section className="panel sonar-shell">
           <div className="sonar-toolbar">
             <div className="sonar-toolbar-group">
-              <span className="toolbar-label">FRAME DIMS:</span>
+              <span className="toolbar-label">SIZE:</span>
               <strong className="mono-text">{run.image_width} × {run.image_height} px</strong>
             </div>
             <div className="sonar-toolbar-group">
               <span className="toolbar-label">DETECTIONS:</span>
-              <strong className="mono-text">{detections.length} total</strong>
+              <strong className="mono-text">{detections.length}</strong>
             </div>
             {selectedDet && (
               <div className="sonar-toolbar-group selected-highlight">
-                <span className="toolbar-label">FOCUS:</span>
+                <span className="toolbar-label">SELECTED:</span>
                 <strong className="text-teal">{selectedDet.class.replace(/_/g, ' ')} ({formatConfidence(selectedDet.confidence)})</strong>
               </div>
             )}
@@ -239,7 +239,7 @@ export default function Result() {
           </div>
 
           <div className="anomaly-header">
-            <h2 style={{ margin: 0, fontSize: '1.15rem' }}>Acoustic Targets</h2>
+            <h2 style={{ margin: 0, fontSize: '1.15rem' }}>Detections</h2>
             <span className="anomaly-count-pill">{detections.length} found</span>
           </div>
 
@@ -256,9 +256,9 @@ export default function Result() {
                     <line x1="2" y1="12" x2="22" y2="12" />
                   </svg>
                 </div>
-                <h3>No Debris Detected</h3>
+                <h3>No detections</h3>
                 <p className="muted">
-                  The acoustic confidence threshold (0.25) did not yield any significant seafloor anomalies on this waterfall section.
+                  Nothing exceeded the confidence threshold (0.25) on this image.
                 </p>
               </div>
             ) : (

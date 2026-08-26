@@ -166,18 +166,18 @@ export default function MapView() {
               <line x1="4" y1="4" x2="20" y2="20" stroke="#f43f5e" strokeWidth="2" />
             </svg>
           </div>
-          <p className="kicker">Honest Geospatial Status</p>
-          <h2>Navigation Telemetry Unavailable</h2>
+          <p className="kicker">No geolocation data</p>
+          <h2>No navigation metadata</h2>
           <p className="muted" style={{ maxWidth: '32rem', margin: '0 auto 24px' }}>
-            No GPS or survey heading metadata was supplied with <code>{run.filename}</code>.
-            In compliance with strict data integrity standards, AquaX will never fabricate or hallucinate seafloor coordinates.
+            No GPS or heading data was attached with <code>{run.filename}</code>.
+            Coordinates are never invented — attach a metadata file with lat, lon, heading, and pixel_size_m to enable the map.
           </p>
           <div className="actions" style={{ justifyContent: 'center' }}>
             <Link className="btn btn-primary" to={`/runs/${run.id}`}>
-              Back to Detection Waterfall
+              Back to Result
             </Link>
             <Link className="btn btn-secondary" to="/">
-              Upload New Survey with Metadata
+              Upload with metadata
             </Link>
           </div>
         </div>
@@ -190,7 +190,7 @@ export default function MapView() {
       <div className="result-header">
         <div>
           <div className="header-meta-row">
-            <span className="kicker">GIS Spatial Analysis</span>
+            <span className="kicker">Map</span>
             <span className={`mode-badge ${modelInfo.isMock ? 'mode-badge-mock' : 'mode-badge-real'}`}>
               <span className="mode-dot" />
               {modelInfo.badgeLabel}
@@ -198,7 +198,7 @@ export default function MapView() {
           </div>
           <h1 className="result-filename">{run.filename}</h1>
           <p className="lede">
-            Plotted {located.length} georeferenced anomaly position{located.length === 1 ? '' : 's'} derived from authentic survey metadata.
+            {located.length} geolocated detection{located.length === 1 ? '' : 's'}.
           </p>
         </div>
 
@@ -220,7 +220,7 @@ export default function MapView() {
 
         <aside className="panel map-sidebar">
           <div className="anomaly-header">
-            <h2 style={{ margin: 0, fontSize: '1.15rem' }}>Geolocated Targets</h2>
+            <h2 style={{ margin: 0, fontSize: '1.15rem' }}>Detections</h2>
             <span className="anomaly-count-pill text-teal">{located.length} mapped</span>
           </div>
 

@@ -15,6 +15,14 @@ export interface Geolocation {
   status: GeoStatus;
 }
 
+export interface ShadowZone {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  adjacent_to_highlight: boolean;
+}
+
 export interface Detection {
   id: string;
   class: string;
@@ -23,6 +31,7 @@ export interface Detection {
   geolocation: Geolocation;
   risk_level: string;
   risk_score: number;
+  mask_points?: number[][] | null;
 }
 
 export interface RunResult {
@@ -34,4 +43,23 @@ export interface RunResult {
   image_height: number;
   metadata_attached: boolean;
   detections: Detection[];
+  shadow_zones: ShadowZone[];
+}
+
+export interface RunSummary {
+  id: string;
+  filename: string;
+  inference_mode: string;
+  detection_count: number;
+}
+
+export interface SystemInfo {
+  version: string;
+  model: string;
+  classes: string[];
+  segmentation_support: boolean;
+  onnx_available: boolean;
+  metadata_formats: string[];
+  max_upload_mb: number;
+  confidence_threshold: number;
 }

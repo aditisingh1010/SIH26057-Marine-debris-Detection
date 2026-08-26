@@ -221,8 +221,30 @@ export default function Result() {
                   </g>
                 )
               })}
+              {/* Acoustic Shadow Zones (heuristic) */}
+              {(run.shadow_zones ?? []).map((sz, i) => (
+                <rect
+                  key={`shadow-${i}`}
+                  x={sz.x}
+                  y={sz.y}
+                  width={sz.width}
+                  height={sz.height}
+                  fill="rgba(99, 102, 241, 0.08)"
+                  stroke="rgba(129, 140, 248, 0.5)"
+                  strokeWidth={1.5}
+                  strokeDasharray="4 3"
+                  className="shadow-zone-rect"
+                />
+              ))}
             </svg>
           </div>
+
+          {(run.shadow_zones ?? []).length > 0 && (
+            <div className="shadow-legend">
+              <span className="shadow-legend-swatch" />
+              <span>Acoustic shadow candidate zones ({run.shadow_zones.length}) — experimental heuristic</span>
+            </div>
+          )}
         </section>
 
         {/* Details & Cards Sidebar */}

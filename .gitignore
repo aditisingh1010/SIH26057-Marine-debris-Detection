@@ -10,7 +10,7 @@ __pycache__/
 ml/data/raw/
 ml/data/processed/
 ml/data/splits/
-Dataset/crab_pot/images/
+Dataset/crab_pot/
 
 # Trained models
 

@@ -9,18 +9,18 @@ __pycache__/
 # ML data
 ml/data/raw/
 ml/data/processed/
+ml/data/splits/
+Dataset/crab_pot/images/
 
 # Trained models
 
-
-
 # Jupyter
 .ipynb_checkpoints/
+
 # Generated ML experiment & prediction data
 ml/data/exp_data/
 ml/data/exp_runs/
 ml/data/cleaned_predictions/
-ml/data/splits/
 runs/
 
 # Logs & OS artifacts
@@ -32,4 +32,3 @@ Thumbs.db
 storage/
 frontend/node_modules/
 frontend/dist/
-

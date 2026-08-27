@@ -25,12 +25,47 @@ Coordinates are only shown when real survey metadata (lat, lon, heading, pixel_s
 - **Backend:** FastAPI + Uvicorn + OpenCV
 - **Frontend:** React + TypeScript + Vite + Leaflet
 
+## Crab-pot SSS dataset
+
+The project can incorporate the gated `PINGEcosystem/sss-crab-pot-detection-ds` dataset as an additional high-confidence marine-object class. The source contains 6,674 side-scan sonar images with pixel-space bounding boxes and two labels: `Crab-Pot` and `Maybe-Crab-Pot`. This project intentionally keeps only `Crab-Pot` and maps it to YOLO class id `2`; ambiguous `Maybe-Crab-Pot` examples are excluded. The source dataset uses a Delaware sonar domain, so this is treated as an additional training domain rather than proof of performance on every survey system.
+
+The dataset is gated on Hugging Face. Accept its access conditions first, then authenticate locally:
+
+```powershell
+pip install -U datasets pillow huggingface_hub
+hf auth login
+```
+
+Import and convert the annotations:
+
+```powershell
+python ml/src/import_crab_pot_dataset.py
+```
+
+This writes the converted data under `Dataset/crab_pot/` and creates `Dataset/crab_pot/IMPORT_REPORT.json`. Downloaded images are ignored by Git and must not be committed.
+
+Then audit and rebuild the combined YOLO splits:
+
+```powershell
+python ml/src/data_audit.py --dataset-root Dataset --output ml/data/audit_report.json
+python ml/src/build_splits.py --dataset-root Dataset --output-dir ml/data/splits/processed --yaml ml/data/splits/dataset.yaml --preprocess
+```
+
+The resulting class map is:
+
+```text
+0 = debris_0
+1 = debris_1
+2 = crab_pot
+```
+
+Before a final SIH submission, evaluate both the original debris classes and the new crab-pot class separately; do not claim that crab-pot training data proves general marine-debris performance.
+
 ## Running
 
 ### Backend
 
 ```powershell
-# From repo root
 $env:PYTHONPATH = "backend;ml\src"
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```

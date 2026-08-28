@@ -111,9 +111,9 @@ def _process_image(
                 confidence=det["confidence"],
                 bbox=bbox_obj,
                 geolocation=Geolocation(
-                    latitude=geo.latitude if geo_available else None,
-                    longitude=geo.longitude if geo_available else None,
-                    status=geo.status if geo_available else "unavailable"
+                    latitude=geo.get("latitude") if geo_available else None,
+                    longitude=geo.get("longitude") if geo_available else None,
+                    status=geo.get("status", "unavailable") if geo_available else "unavailable"
                 ),
                 risk_level=det.get("risk_level", "medium"),
                 risk_score=det.get("risk_score", 0.5),

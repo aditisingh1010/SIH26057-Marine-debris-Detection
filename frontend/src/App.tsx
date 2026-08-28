@@ -50,7 +50,7 @@ export default function App() {
           {modelOk === null
             ? 'API…'
             : modelOk
-            ? `YOLOv8n Ghost Pot Baseline | ${isMock ? 'MOCK' : 'REAL GPU'}`
+            ? `YOLOv8n Ghost Pot Baseline (${modelName || 'best.pt'}) | ${isMock ? 'MOCK' : 'REAL GPU'}`
             : 'MODEL OFFLINE'}
         </span>
       </header>

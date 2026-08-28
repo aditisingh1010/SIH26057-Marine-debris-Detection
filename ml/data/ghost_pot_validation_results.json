@@ -1,0 +1,1107 @@
+{
+  "ghost_pot": {
+    "completeness": {},
+    "file_counts": {
+      "train": {
+        "images_on_disk": 5721,
+        "jsonl_exists": true
+      },
+      "valid": {
+        "images_on_disk": 555,
+        "jsonl_exists": true
+      },
+      "test": {
+        "images_on_disk": 398,
+        "jsonl_exists": true
+      }
+    },
+    "disk_usage_mb": 536.09,
+    "jsonl_status": {
+      "train": {
+        "total_lines": 5721,
+        "unique_records": 5721,
+        "duplicates": 0
+      },
+      "valid": {
+        "total_lines": 555,
+        "unique_records": 555,
+        "duplicates": 0
+      },
+      "test": {
+        "total_lines": 398,
+        "unique_records": 398,
+        "duplicates": 0
+      }
+    },
+    "image_decoding": {
+      "train": {
+        "total_checked": 5721,
+        "successfully_decoded": 5721,
+        "corrupt_count": 0
+      },
+      "valid": {
+        "total_checked": 555,
+        "successfully_decoded": 555,
+        "corrupt_count": 0
+      },
+      "test": {
+        "total_checked": 398,
+        "successfully_decoded": 398,
+        "corrupt_count": 0
+      }
+    },
+    "dimensions": {
+      "train": {
+        "unique_shapes_w_h": [
+          [
+            640,
+            640
+          ]
+        ],
+        "min_w": 640,
+        "max_w": 640,
+        "min_h": 640,
+        "max_h": 640
+      },
+      "valid": {
+        "unique_shapes_w_h": [
+          [
+            640,
+            640
+          ]
+        ],
+        "min_w": 640,
+        "max_w": 640,
+        "min_h": 640,
+        "max_h": 640
+      },
+      "test": {
+        "unique_shapes_w_h": [
+          [
+            640,
+            640
+          ]
+        ],
+        "min_w": 640,
+        "max_w": 640,
+        "min_h": 640,
+        "max_h": 640
+      }
+    },
+    "formats": {
+      "train": [
+        "JPEG/RGB"
+      ],
+      "valid": [
+        "JPEG/RGB"
+      ],
+      "test": [
+        "JPEG/RGB"
+      ]
+    },
+    "annotations": {
+      "total_boxes": 9311,
+      "boxes_per_split": {
+        "train": 7469,
+        "valid": 1275,
+        "test": 567
+      },
+      "class_counts": {
+        "Crab-Pot": 9311
+      },
+      "images_per_class": {
+        "Crab-Pot": 5127
+      },
+      "background_images": {
+        "train": 1430,
+        "valid": 53,
+        "test": 64
+      },
+      "bbox_format": "[x_min, y_min, w, h] in absolute pixels",
+      "out_of_bounds_boxes": 85,
+      "non_positive_boxes": 0,
+      "invalid_coords_details": [
+        [
+          "train",
+          "BC_POST_T2_00_01_5_7_png_jpg.rf.345b12fe3cc903e1f5efd2c5c817906e.jpg",
+          [
+            405,
+            633,
+            15.533,
+            7.341
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec04_Sensor_Depth_wcp_ss_port_00056_png_jpg.rf.38256bd44b6d5b027b549ea3dce9da75.jpg",
+          [
+            399,
+            635,
+            27.83,
+            5.185
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec11_wcp_ss_star_00036_png_jpg.rf.97d656bcd425638fc58105f521f02667.jpg",
+          [
+            383,
+            596,
+            135.556,
+            44.407
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec11_wcp_ss_star_00036_png_jpg.rf.bfaca42b8263157c9b5f2ce70408357c.jpg",
+          [
+            592,
+            73,
+            48.267,
+            136.444
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec12_Sensor_Depth_wcp_ss_port_00041_png_jpg.rf.164c05354febf8fc7398c3ebd1ebf323.jpg",
+          [
+            324,
+            620,
+            35.704,
+            20.093
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec12_Sensor_Depth_wcp_ss_port_00050_png_jpg.rf.ac3d91e4513e2ca84cb0b271d9cfe59f.jpg",
+          [
+            604,
+            404,
+            36.267,
+            38.511
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec12_wcp_ss_star_00032_png_jpg.rf.691d7ed01ffa4b7174008083bca15cb8.jpg",
+          [
+            622,
+            188,
+            18.163,
+            56.356
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec13_wcp_ss_port_00005_png_jpg.rf.741243549e0776250b0da5b03e973575.jpg",
+          [
+            228,
+            575,
+            132.067,
+            65.207
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec13_wcp_ss_port_00007_png_jpg.rf.1a117f6f7fe54a4f64dc73d6cbc1a254.jpg",
+          [
+            597,
+            350,
+            43.4,
+            129.015
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec13_wcp_ss_port_00011_png_jpg.rf.815eca631a9f42357e4bf3aed1e9d2c2.jpg",
+          [
+            579,
+            295,
+            61.148,
+            137.578
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec13_wcp_ss_star_00028_png_jpg.rf.150b9934427a519b3db8368f10fc7a41.jpg",
+          [
+            565,
+            357,
+            75.419,
+            63.044
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec13_wcp_ss_star_00028_png_jpg.rf.a0d0436daec2d941f43667f0670afcc9.jpg",
+          [
+            344,
+            565,
+            64.778,
+            75.419
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec15_wcp_ss_port_00017_png_jpg.rf.0c9f1c773daee70a028aa67d26c00a83.jpg",
+          [
+            588,
+            162,
+            52.133,
+            106.007
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec15_wcp_ss_star_00024_png_jpg.rf.7b9252e75bfcf81bdfc1f783cc9bef76.jpg",
+          [
+            299,
+            614,
+            68.933,
+            26.267
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec15_wcp_ss_star_00024_png_jpg.rf.85d46fbfd7f6cbf8777a89b5802798e8.jpg",
+          [
+            606,
+            254,
+            34.163,
+            64.281
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec16_wcp_ss_port_00016_png_jpg.rf.cbee8d29b101e06156c7a95effad8166.jpg",
+          [
+            615,
+            450,
+            25.2,
+            60.126
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec16_wcp_ss_port_00053_png_jpg.rf.412c8036d28b5ad9616eec8f476e4018.jpg",
+          [
+            627,
+            100,
+            13.422,
+            23.067
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec16_wcp_ss_port_00053_png_jpg.rf.e169e93d1e337ed1fe1af8ef3c9952e9.jpg",
+          [
+            598,
+            309,
+            42.015,
+            71.311
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec17_wcp_ss_port_00030_png_jpg.rf.cb5869c2c81a6ce9a11b3d1664408ef1.jpg",
+          [
+            558,
+            120,
+            82.289,
+            162.37
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec17_wcp_ss_star_00014_png_jpg.rf.8050b4f867b9c42af757b0c8c246281b.jpg",
+          [
+            503,
+            621,
+            38,
+            19.278
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec18_wcp_ss_port_00000_png_jpg.rf.7e7fd6c12d0cb62674d325e7046eb55d.jpg",
+          [
+            591,
+            520,
+            49.23,
+            67.252
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec18_wcp_ss_port_00000_png_jpg.rf.9e9f509ed87d6aac2b7d6c3677ae5f87.jpg",
+          [
+            604,
+            94,
+            36.059,
+            80.185
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec18_wcp_ss_port_00000_png_jpg.rf.a37a3114e70e6fa787a4a2460762a7ba.jpg",
+          [
+            570,
+            583,
+            65.43,
+            57.422
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec18_wcp_ss_port_00005_png_jpg.rf.4f68fced69d92d9ef0ce19f90a5e2a74.jpg",
+          [
+            169,
+            572,
+            96.267,
+            68.233
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_port_00021_png_jpg.rf.e3b931c2cd460b77ba8644f576a267cf.jpg",
+          [
+            173,
+            542,
+            104.593,
+            98.3
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_port_00037_png_jpg.rf.08cfb7d3345dae8a6cdfe58d10c80bdf.jpg",
+          [
+            629,
+            523,
+            11.259,
+            60
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_port_00050_png_jpg.rf.61f1e2a22cc2b2264f7c42e404813f14.jpg",
+          [
+            190,
+            619,
+            63.556,
+            21.352
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_port_00071_png_jpg.rf.bdc13360ac6b837af259968977839e1e.jpg",
+          [
+            568,
+            422,
+            72.252,
+            99.467
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_port_00071_png_jpg.rf.efd86302dda5165080c00f5a66dc1d5d.jpg",
+          [
+            350,
+            571,
+            100.696,
+            69.133
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_star_00015_png_jpg.rf.2fa0b13ea798240d771920594f130dbe.jpg",
+          [
+            560,
+            507,
+            80.222,
+            116.185
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_star_00015_png_jpg.rf.659f55affe88dfcaa97cb759697583cb.jpg",
+          [
+            559,
+            106,
+            81.467,
+            91.304
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_star_00015_png_jpg.rf.bc30956348e8592e1fa6d03682a434d3.jpg",
+          [
+            89,
+            549,
+            86.704,
+            91.222
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_star_00015_png_jpg.rf.ff07a34bba93d3d9a5b869e713e21dc9.jpg",
+          [
+            543,
+            48,
+            97.4,
+            89.081
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_star_00016_png_jpg.rf.1371dd3f5195f03ad9f64771648838e3.jpg",
+          [
+            346,
+            574,
+            76.8,
+            66.156
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_star_00017_png_jpg.rf.a1b8a32fb154393d8af68f3d9786fcbb.jpg",
+          [
+            397,
+            596,
+            59.044,
+            44.267
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_star_00018_png_jpg.rf.e911a0292717999382b186c6091cf7bc.jpg",
+          [
+            636,
+            539,
+            4.222,
+            58.193
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_star_00019_png_jpg.rf.f33b71dd24d6d8e51b9d5b6970c929d9.jpg",
+          [
+            494,
+            586,
+            87.341,
+            54.267
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_star_00021_png_jpg.rf.3ecd78d0ceaaf218d432b8b26edb6b52.jpg",
+          [
+            558,
+            210,
+            82.437,
+            125.6
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_star_00021_png_jpg.rf.7bd66d9dc805f9a1203d79c0e3e0ecd0.jpg",
+          [
+            276,
+            587,
+            121.6,
+            53.133
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_star_00021_png_jpg.rf.7bd66d9dc805f9a1203d79c0e3e0ecd0.jpg",
+          [
+            588,
+            170,
+            52.267,
+            102.067
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_star_00027_png_jpg.rf.143c97cba5fd251b6932f23404484ed9.jpg",
+          [
+            385,
+            577,
+            97.126,
+            63.478
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_star_00028_png_jpg.rf.57aab39d2ba77bcae6378a59a0c1c9f8.jpg",
+          [
+            182,
+            592,
+            95,
+            48.367
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_star_00044_png_jpg.rf.75ab44ceea9d42a9ab4aba4bf5b17912.jpg",
+          [
+            629,
+            528,
+            11.156,
+            75.222
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_star_00044_png_jpg.rf.c46976264b5a92cba3438ea36368c777.jpg",
+          [
+            573,
+            506,
+            67.267,
+            71.778
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_star_00044_png_jpg.rf.c908d60a51411e12490562374f70a6ce.jpg",
+          [
+            566,
+            482,
+            74.13,
+            65.889
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_star_00044_png_jpg.rf.c908d60a51411e12490562374f70a6ce.jpg",
+          [
+            599,
+            578,
+            41.481,
+            41.63
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_star_00067_png_jpg.rf.6e522ffed99b7a72ed3b23f1d00824d2.jpg",
+          [
+            630,
+            512,
+            10.03,
+            50.533
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_star_00070_png_jpg.rf.a8356a48094bf21eb4467b6767cb77dd.jpg",
+          [
+            574,
+            160,
+            66.222,
+            98.993
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_star_00071_png_jpg.rf.9fc77ac5b21bf43c41af3316f63bb6a2.jpg",
+          [
+            355,
+            567,
+            95.207,
+            73.467
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_star_00072_png_jpg.rf.cbeb91564aef4c4e7331fe9c489cd674.jpg",
+          [
+            595,
+            62,
+            45.2,
+            71.785
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_star_00073_png_jpg.rf.e9abbdbc9d030dc89984ecd7a258197b.jpg",
+          [
+            580,
+            205,
+            60.326,
+            97.874
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec19_wcp_ss_star_00073_png_jpg.rf.f7a11d6decb1cb9cfbd6c2100192633c.jpg",
+          [
+            353,
+            581,
+            99.837,
+            59.056
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec20_wcp_ss_port_00007_png_jpg.rf.9c11e03b9dc8a713b0e8fb426b3340f6.jpg",
+          [
+            616,
+            380,
+            24.067,
+            38.607
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec20_wcp_ss_star_00003_png_jpg.rf.8e5f94c1a02bf64426c5cee5baf401a6.jpg",
+          [
+            591,
+            110,
+            49.289,
+            80.4
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec20_wcp_ss_star_00003_png_jpg.rf.f677f8b2d4588b36a09567098569ebcb.jpg",
+          [
+            611,
+            390,
+            29.467,
+            87.178
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec20_wcp_ss_star_00005_png_jpg.rf.ac99317c8cce41f912f30596789bbde2.jpg",
+          [
+            276,
+            635,
+            30.067,
+            5.444
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec20_wcp_ss_star_00007_png_jpg.rf.596367c762ab82d31e81744a18acaba8.jpg",
+          [
+            589,
+            354,
+            51.367,
+            73.437
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec20_wcp_ss_star_00007_png_jpg.rf.62afaa9fafbc0540f1b9fead9ef32517.jpg",
+          [
+            612,
+            348,
+            28.148,
+            70.978
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec20_wcp_ss_star_00007_png_jpg.rf.ef6ee7c296f6da4889dcd77fb5cc35ab.jpg",
+          [
+            628,
+            6,
+            12.333,
+            25.481
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec20_wcp_ss_star_00009_png_jpg.rf.db3b3b20a920b6f53bfc188f44f7f5db.jpg",
+          [
+            621,
+            501,
+            19.311,
+            52.437
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec20_wcp_ss_star_00011_png_jpg.rf.1c97a9f4df16bc489d35c2fd0c1471c9.jpg",
+          [
+            342,
+            593,
+            47.63,
+            47.067
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec20_wcp_ss_star_00017_png_jpg.rf.a3874f5a91fe25c30f2494b5a8f01443.jpg",
+          [
+            420,
+            564,
+            62.385,
+            76.259
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec21_wcp_ss_port_00001_png_jpg.rf.a07cd70f01e127fc3a5300bba4c9ef92.jpg",
+          [
+            560,
+            274,
+            80.119,
+            87.304
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec2_wcp_ss_port_00002_png_jpg.rf.78dbc5e57f8a90cfc09a43bd383fe1c9.jpg",
+          [
+            620,
+            190,
+            20.474,
+            54.23
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec2_wcp_ss_port_00067_png_jpg.rf.4b231fdda0fc215cde78bf40b8b60649.jpg",
+          [
+            333,
+            622,
+            16.593,
+            18.181
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec2_wcp_ss_port_00131_png_jpg.rf.8c2b890f5fe3a795a8ed37ca3d4d2967.jpg",
+          [
+            601,
+            411,
+            39.185,
+            60.667
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec2_wcp_ss_star_00031_png_jpg.rf.fac902a3c8ddf7c476f238ef6c0d16d9.jpg",
+          [
+            28,
+            600,
+            87.311,
+            40.289
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec3_wcp_ss_star_00036_png_jpg.rf.d8c5a652a2ef2a9b1043b8c651b6a5b4.jpg",
+          [
+            630,
+            561,
+            10.267,
+            30.844
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec5_wcp_ss_port_00038_png_jpg.rf.d9a461318b4e957cf7fe2dce6ea3b626.jpg",
+          [
+            619,
+            124,
+            21.081,
+            25
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec5_wcp_ss_star_00019_png_jpg.rf.4b515f2be96cb7bf06d96727ead2310a.jpg",
+          [
+            615,
+            505,
+            25.311,
+            54.237
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec5_wcp_ss_star_00023_png_jpg.rf.b72a41009756f8dfb5e88e60100d3709.jpg",
+          [
+            610,
+            128,
+            30.381,
+            45.474
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec6_wcp_ss_port_00005_png_jpg.rf.c85063cbc69dd176f40042c3da5f5876.jpg",
+          [
+            626,
+            337,
+            14.185,
+            28.133
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec6_wcp_ss_port_00028_png_jpg.rf.6fe98605b221bc41e43d6351a78bf729.jpg",
+          [
+            619,
+            296,
+            21.467,
+            64.933
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec6_wcp_ss_port_00028_png_jpg.rf.90ba32584e913345e325261257427acf.jpg",
+          [
+            301,
+            632,
+            36.141,
+            8.052
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec6_wcp_ss_star_00001_png_jpg.rf.3e2df0c658eadc6c5dc57ee0c773b9fd.jpg",
+          [
+            628,
+            495,
+            12.415,
+            58.607
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec6_wcp_ss_star_00014_png_jpg.rf.13c9f656612f91c987a20f5ed2171b8f.jpg",
+          [
+            623,
+            537,
+            17.022,
+            44
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec6_wcp_ss_star_00049_png_jpg.rf.c1285d2141eb1dfeb594e372104fac91.jpg",
+          [
+            628,
+            477,
+            12.107,
+            102.8
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec6_wcp_ss_star_00062_png_jpg.rf.16171ed050c14b5a539b9c480c2d8dce.jpg",
+          [
+            616,
+            395,
+            24.111,
+            54.2
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec7_wcp_ss_port_00012_png_jpg.rf.5e645fef502377585cd938e9486ed0d7.jpg",
+          [
+            577,
+            38,
+            63.056,
+            67.711
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec7_wcp_ss_port_00019_png_jpg.rf.2f50b9e9f691ee78cdc756dd72f92564.jpg",
+          [
+            637,
+            430,
+            3.104,
+            53.067
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec7_wcp_ss_port_00031_png_jpg.rf.894dbb898d35db1a15f8af760c381ce6.jpg",
+          [
+            635,
+            389,
+            5.015,
+            30.178
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec7_wcp_ss_port_00035_png_jpg.rf.5028b96585818590d732c7f58f416f9c.jpg",
+          [
+            625,
+            373,
+            15.237,
+            36
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec7_wcp_ss_port_00040_png_jpg.rf.8ea4b8bdc7d03dc1af2fd52b2cb5dec3.jpg",
+          [
+            143,
+            590,
+            57.356,
+            50.467
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec7_wcp_ss_star_00026_png_jpg.rf.af6084ff1c46a7fcf9321321b2328a26.jpg",
+          [
+            615,
+            561,
+            25.333,
+            56.074
+          ],
+          "out of bounds for img 640x640"
+        ],
+        [
+          "train",
+          "Rec7_wcp_ss_star_00040_png_jpg.rf.d0d6827cddc2a5b955c61abb5bb9793c.jpg",
+          [
+            51,
+            625,
+            26.378,
+            15.133
+          ],
+          "out of bounds for img 640x640"
+        ]
+      ]
+    },
+    "corrupt_files": [],
+    "missing_images_on_disk": [],
+    "missing_annotation_records": [],
+    "duplicate_records": [],
+    "intensity_contrast": {
+      "train": {
+        "mean_intensity": 87.53,
+        "mean_contrast_std": 35.06
+      },
+      "valid": {
+        "mean_intensity": 67.21,
+        "mean_contrast_std": 42.64
+      },
+      "test": {
+        "mean_intensity": 96.33,
+        "mean_contrast_std": 31.95
+      }
+    },
+    "total_files_in_dir": 13363,
+    "all_detected_classes": [
+      "Crab-Pot"
+    ],
+    "total_images_all_splits": 6674
+  },
+  "existing_dataset": {
+    "total_images": 909,
+    "labeled_images": 140,
+    "background_images": 769,
+    "total_boxes": 176,
+    "class_counts": {
+      "1": 58,
+      "0": 118
+    },
+    "unique_shapes_w_h": [
+      [
+        416,
+        416
+      ],
+      [
+        1024,
+        1024
+      ]
+    ],
+    "mean_intensity": 46.58,
+    "mean_contrast_std": 36.02
+  }
+}

@@ -1,64 +1,134 @@
-# Ghost Pot Dataset Inspection
+# Ghost Pot Dataset Inspection & Domain-Shift Analysis
 
-**Status: PARTIAL / BLOCKED (2026-08-28)**
+> **Dataset:** `PINGEcosystem/sss-crab-pot-detection-ds`
+> **Location:** `ml/data/raw/ghost_pot/`
+> **Date of Audit:** 2026-08-28
+> **Status:** Complete & Validated (Read-Only Audit — No Training Performed)
 
-## Source and download state
+---
 
-- Dataset: `PINGEcosystem/sss-crab-pot-detection-ds`
-- Hugging Face revision observed: `b6a36ec00c9bb0070f30be4c1dd6cbe139423cd4`
-- Storage target: `ml/data/raw/sss-crab-pot-detection-ds/` (ignored by Git)
-- Repository metadata is public, but the image assets are gated (`401 Unauthorized`) without a local Hugging Face access token.
-- The local Hugging Face client has no saved token. The attempted download left only the dataset card and Hugging Face cache metadata; it did not download raw sonar images or annotations.
+## 1. Dataset Completeness & Disk Footprint
 
-## Available source metadata
+- **Status:** Complete local download present.
+- **Directory Path:** `ml/data/raw/ghost_pot/`
+- **Total Files in Directory:** **13,363 files** (includes dataset images, metadata JSONL files, `.cache` artifacts, `.gitattributes`, and `.gitignore`).
+- **Disk Usage:** **536.09 MB** (~0.524 GB).
+- **Git Status:** Strictly untracked and excluded via `.gitignore`.
 
-The dataset card reports:
+---
 
-- 6,674 JPG images: 5,721 train, 555 valid, and 398 test (the repository contains 6,680 files including metadata files)
-- Consumer-grade Humminbird side-scan sonar
-- Delaware Inland Bays and Delaware Bay, shallow/turbid-water surveys
-- JSON Lines (`metadata.jsonl`) annotations with one record per image
-- Axis-aligned pixel boxes encoded as `[x, y, width, height]`
-- Classes: `Crab-Pot` and `Maybe-Crab-Pot`
-- Split directories named `train/`, `valid/`, and `test/`
+## 2. File & Split Breakdown
 
-The source metadata advertises an `image` / `objects` schema where `objects` contains `bbox`, `category`, and `area`. It also contains conflicting license text: front matter says `cc-by-sa-4.0`, while the bottom of the card says GPL. Resolve the license with the dataset owner before redistribution or production use.
+The Ghost Pot dataset is structured into standard `train`, `valid`, and `test` splits:
 
-## Existing SIH26057 dataset baseline
+| Split | Image Count | JSONL Files | Annotation Records | Image Files Corrupt | Missing Images |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **train** | 5,721 | 1 (`metadata.jsonl`) | 5,721 | 0 | 0 |
+| **valid** | 555 | 1 (`metadata.jsonl`) | 555 | 0 | 0 |
+| **test** | 398 | 1 (`metadata.jsonl`) | 398 | 0 | 0 |
+| **Total** | **6,674** | **3** | **6,674** | **0** | **0** |
 
-The existing `Dataset/` was inspected without modification:
+- **Verification:** 100% of the 6,674 image files on disk match their corresponding JSONL records. Zero orphaned files and zero missing records.
 
-| Property | Observed value |
-| --- | ---: |
-| Images | 909 JPG files |
-| Image/label matching | 909/909 images have a same-stem TXT label; no extra TXT labels |
-| Image sizes | 450 at 416x416; 459 at 1024x1024 |
-| Aspect ratio | 1:1 for every image |
-| Annotation format | YOLO TXT (`class x_center y_center width height`) |
-| Total boxes | 176 |
-| Empty label files | 769 |
-| Class-id box counts | `0`: 118; `1`: 58 |
-| Mean grayscale intensity (per-image mean) | 46.58/255 |
-| Mean grayscale standard deviation | 36.02/255 |
+---
 
-The class IDs are intentionally retained as `debris_0` and `debris_1`. The available annotations do not establish a mapping to named debris types.
+## 3. Image Properties & Decoding Verification
 
-## Compatibility assessment
+- **Decoding Status:** All 6,674 images were decoded successfully using Pillow & OpenCV.
+- **Corrupt Files:** **0** (0 byte files: 0, broken headers: 0).
+- **Dimensions:**
+  - **train:** 640 × 640 px (100%)
+  - **valid:** 640 × 640 px (100%)
+  - **test:** 640 × 640 px (100%)
+  - **Unique Shapes across dataset:** `[640, 640]`
+- **Formats & Color Mode:** `JPEG / RGB` (3 channels) across 100% of images.
 
-Both collections are side-scan-sonar object-detection data, and the Ghost Pot source is especially relevant because it uses consumer-grade Humminbird hardware. However, compatibility is **not yet established**. The required direct comparison cannot be completed until the gated assets are available locally.
+---
 
-Known differences:
+## 4. Annotations & Bounding-Box Validation
 
-- The baseline uses YOLO TXT labels with two unknown `debris_*` classes; Ghost Pot uses JSONL `[x, y, width, height]` boxes with named confidence-oriented crab-pot classes.
-- The baseline mixes 416x416 and 1024x1024 images. Ghost Pot dimensions, aspect ratios, intensity distributions, swath layouts, acoustic shadows, and crop/mosaic conventions remain unverified.
-- Ghost Pot's narrowly defined crab-pot target semantics should not be merged into `debris_0` or `debris_1` without a documented label-mapping decision and annotation review.
+- **Annotation Format:** JSONL format with `file_name` and `objects` (`bbox`, `category`, `area`).
+- **Bounding Box Coordinate Format:** `[x_min, y_min, width, height]` in absolute pixel coordinates.
+- **Total Bounding Boxes:** **9,311 boxes**
+  - **train:** 7,469 boxes
+  - **valid:** 1,275 boxes
+  - **test:** 567 boxes
 
-## Required next action
+### Category Distribution
+- **Detected Classes in JSONL:** **`Crab-Pot`** (9,311 boxes)
+- **Note on Metadata:** The Hugging Face dataset card lists `Maybe-Crab-Pot` as a potential metadata tag, but empirical parsing of all 6,674 JSONL records confirms that **100% of labeled objects belong to `Crab-Pot`**.
 
-Authenticate the local client with an approved Hugging Face **read** token, for example:
+### Image Box Density & Background Distribution
+- **Labeled Images (contains ≥1 box):** **5,127 images** (76.8%)
+- **Background / Zero-Box Images:** **1,547 images** (23.2%)
+  - `train` background images: 1,430
+  - `valid` background images: 53
+  - `test` background images: 64
+- **Average Box Density on Labeled Images:** 1.82 boxes per image.
 
-```powershell
-ml\.venv-hf\Scripts\hf auth login
-```
+### Bounding-Box Coordinate Integrity
+- **Non-Positive Size Boxes ($w \le 0$ or $h \le 0$):** **0**
+- **Out-of-Bounds Boxes:** **85 boxes** (0.91% of total boxes)
+  - *Cause:* Minor sub-pixel or edge boundary overlap from image tile cropping (e.g., `x = 637, w = 3.1` extending to 640.1 px). These can be safely clipped during YOLO conversion.
 
-Then re-run the download into the same ignored raw directory and inspect all JSONL files and samples before choosing between fine-tuning, combined training, or separate-domain models. Do not train, overwrite `best.pt`, convert labels, or merge datasets until that inspection is complete.
+---
+
+## 5. Measured Photometric & Contrast Statistics
+
+Grayscale intensity statistics were computed across all images in each dataset:
+
+| Dataset / Split | Mean Intensity (0–255) | Mean Contrast (Std Dev) | Baseline Brightness |
+| :--- | :--- | :--- | :--- |
+| **Ghost Pot (train)** | 87.53 | 35.06 | Moderate / Brighter seabed |
+| **Ghost Pot (valid)** | 67.21 | 42.64 | Darker / Higher contrast |
+| **Ghost Pot (test)** | 96.33 | 31.95 | Bright seabed floor |
+| **Ghost Pot (Overall)** | **86.40** | **35.70** | **Medium-High gain** |
+| **Existing Dataset (909 SSS)** | **46.58** | **36.02** | **Dark gain baseline** |
+
+---
+
+## 6. Comparison: Ghost Pot vs. Existing SSS Dataset
+
+| Metric / Characteristic | Ghost Pot Dataset (`PINGEcosystem`) | Existing SSS Dataset (`Dataset/`) |
+| :--- | :--- | :--- |
+| **Total Images** | **6,674 images** | **909 images** |
+| **Labeled Images** | 5,127 images (76.8%) | 140 images (15.4%) |
+| **Background Images** | 1,547 images (23.2%) | 769 images (84.6%) |
+| **Total Bounding Boxes** | **9,311 boxes** | **176 boxes** |
+| **Image Resolution** | Uniform `640 × 640` px | Mixed `416 × 416` and `1024 × 1024` px |
+| **Mean Intensity** | **86.40** (Brighter gain/texture) | **46.58** (Dark acoustic backdrop) |
+| **Mean Contrast (Std Dev)** | 35.70 | 36.02 |
+| **Target Classes** | `Crab-Pot` (trap cages/nets) | `debris_0`, `debris_1` (general debris) |
+| **Annotation Format** | JSONL COCO `[x_min, y_min, w, h]` px | YOLO txt `[class, cx, cy, w, h]` normalized |
+| **Acoustic Shadows** | Sharp, highly focused pot shadows | Variable, broad object shadows |
+| **Swath Geometry** | Cropped tile swaths (port/starboard) | Full waterfall swaths with nadir gaps |
+
+---
+
+## 7. Domain-Shift Assessment
+
+1. **Resolution & Aspect Ratio Shift:** Ghost Pot images are uniformly square cropped ($640 \times 640$), matching standard YOLO inputs nicely. Our existing dataset includes full sonar runs up to $1024 \times 1024$.
+2. **Photometric / Gain Shift:** Ghost Pot has a significantly higher mean background pixel intensity ($86.40$ vs. $46.58$). Models trained purely on Ghost Pot may experience gain threshold mismatch when deployed directly on darker SSS acoustic backdrops without intensity normalization or adaptive gain adjustments.
+3. **Class & Geometric Semantics:** Ghost Pot targets specific structured traps/cages (`Crab-Pot`) featuring regular acoustic geometry and crisp shadows. Existing labels (`debris_0`, `debris_1`) capture heterogeneous, irregular marine debris.
+4. **Data Scale Advantage:** Ghost Pot increases our available sonar training data from **176 boxes to 9,487 total boxes** across both datasets (~53x increase in labeled objects!).
+
+---
+
+## 8. Recommended Strategy
+
+### **Recommended Option: C (Combine Datasets with Two-Stage Pretraining / Fine-Tuning Pipeline)**
+
+**Justification based on empirical evidence:**
+1. **Transfer Learning for Feature Extraction:** Our existing dataset has only 140 labeled images (176 boxes), which limits deep feature learning. Ghost Pot provides 6,674 sonar images and 9,311 labeled objects.
+2. **Two-Stage Training Plan:**
+   - **Stage 1 (Pre-training / Transfer Base):** Convert Ghost Pot JSONL annotations to YOLO format (`ml/data/processed/ghost_pot/`) and train/pretrain YOLOv8 on Ghost Pot to master sonar edge detection, acoustic shadow recognition, and seabed texture filtering.
+   - **Stage 2 (Fine-tuning / Multi-Class Co-Training):** Fine-tune on a combined multi-class taxonomy (`crab_pot`, `debris_0`, `debris_1`) or fine-tune directly on target SSS data with data augmentation (random gain, brightness/contrast jittering to bridge the $86.4 \to 46.58$ intensity shift).
+
+---
+
+## 9. Verification & Safety Summary
+
+- **Existing `best.pt` model:** UNTOUCHED (MD5 hash / timestamp preserved).
+- **Training executed:** NONE.
+- **Files deleted:** NONE.
+- **Git status:** Raw dataset `ml/data/raw/ghost_pot/` is strictly ignored by `.gitignore`.

@@ -23,6 +23,7 @@ ml/data/exp_data/
 ml/data/exp_runs/
 ml/data/cleaned_predictions/
 ml/data/splits/
+ml/data/*.json
 runs/
 
 # Logs & OS artifacts
@@ -34,4 +35,3 @@ Thumbs.db
 storage/
 frontend/node_modules/
 frontend/dist/
-

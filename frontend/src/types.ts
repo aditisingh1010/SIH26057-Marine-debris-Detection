@@ -7,6 +7,10 @@ export interface BBox {
   y: number;
   width: number;
   height: number;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
 }
 
 export interface Geolocation {
@@ -31,6 +35,8 @@ export interface Detection {
   geolocation: Geolocation;
   risk_level: string;
   risk_score: number;
+  passed_filter?: boolean;
+  rejection_reason?: string | null;
   mask_points?: number[][] | null;
 }
 
@@ -42,8 +48,16 @@ export interface RunResult {
   image_width: number;
   image_height: number;
   metadata_attached: boolean;
+  conf_threshold?: number;
+  raw_detections?: Detection[];
+  filtered_detections?: Detection[];
   detections: Detection[];
   shadow_zones: ShadowZone[];
+  geolocation_available?: boolean;
+  geolocation_note?: string;
+  annotated_image_url?: string;
+  json_report_url?: string;
+  csv_report_url?: string;
 }
 
 export interface RunSummary {

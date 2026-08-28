@@ -22,7 +22,7 @@ export async function detect(
   const form = new FormData();
   form.append("file", file);
   if (metadata) form.append("metadata", metadata);
-  const conf = confThreshold ?? 0.15;
+  const conf = confThreshold ?? 0.25;
   const r = await fetch(`${API}/api/v1/detect?conf_threshold=${conf}`, {
     method: "POST",
     body: form,
@@ -42,6 +42,10 @@ export async function detect(
 
 export function imageUrl(id: string) {
   return `${API}/api/v1/runs/${id}/image`;
+}
+
+export function annotatedImageUrl(id: string) {
+  return `${API}/api/v1/runs/${id}/image/annotated`;
 }
 
 export function reportUrl(id: string, fmt: "json" | "csv") {

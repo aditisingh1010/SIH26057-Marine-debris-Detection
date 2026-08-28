@@ -11,7 +11,7 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Attempt to load domain preprocessing and risk calculation utilities
+# Domain preprocessing & noise filter
 try:
     from ml.src.preprocess_sonar import compute_debris_risk, detect_acoustic_shadows, filter_sonar_noise
 except ImportError:
@@ -20,64 +20,10 @@ except ImportError:
     except ImportError:
         def detect_acoustic_shadows(image_bgr: np.ndarray, **kwargs: Any) -> list:
             return []
-    except ImportError:
         def filter_sonar_noise(image: np.ndarray, **kwargs: Any) -> np.ndarray:
             return image
-
-        def compute_debris_risk(
-            bbox: dict,
-            image_width: int,
-            image_height: int,
-            confidence: float,
-            class_name: str,
-        ) -> tuple[str, float]:
-            width = float(bbox.get("width", 0.0))
-            height = float(bbox.get("height", 0.0))
-            total_area = float(image_width * image_height)
-            rel_area = (width * height) / total_area if total_area > 0 else 0.0
-            size_score = min(1.0, (rel_area ** 0.5) * 3.5)
-            conf = min(1.0, max(0.0, float(confidence)))
-            raw_risk = (0.45 * conf) + (0.35 * 0.70) + (0.20 * size_score)
-            score = round(float(np.clip(raw_risk, 0.0, 1.0)), 2)
-            level = "high" if score >= 0.70 else ("medium" if score >= 0.40 else "low")
-            return level, score
-
-
-def _safe_compute_risk(
-    bbox: dict,
-    width: int,
-    height: int,
-    conf: float,
-    class_name: str,
-) -> tuple[str, float]:
-    """Safely invokes compute_debris_risk handling flexible return formats and fallbacks."""
-    try:
-        res = compute_debris_risk(
-            bbox=bbox,
-            image_width=width,
-            image_height=height,
-            confidence=conf,
-            class_name=class_name,
-        )
-        if isinstance(res, tuple) and len(res) == 2:
-            a, b = res
-            if isinstance(a, str) and isinstance(b, (int, float)):
-                return a, float(b)
-            if isinstance(a, (int, float)) and isinstance(b, str):
-                return b, float(a)
-    except Exception as exc:
-        logger.warning("Error invoking compute_debris_risk (%s); using fallback.", exc)
-
-    # Deterministic fallback calculation
-    w = float(bbox.get("width", 0.0))
-    h = float(bbox.get("height", 0.0))
-    total_area = float(width * height)
-    rel_area = (w * h) / total_area if total_area > 0 else 0.0
-    size_score = min(1.0, (rel_area ** 0.5) * 3.5)
-    score = round(float(np.clip(0.45 * conf + 0.35 * 0.70 + 0.20 * size_score, 0.0, 1.0)), 2)
-    level = "high" if score >= 0.70 else ("medium" if score >= 0.40 else "low")
-    return level, score
-
+        def compute_debris_risk(bbox: dict, image_width: int, image_height: int, confidence: float, class_name: str) -> tuple[str, float]:
+            return "medium", 0.50
 
 class InferenceService:
     _shared_model = None
@@ -89,11 +35,11 @@ class InferenceService:
         self.loaded = False
         self.inference_mode: str = "mock"
         self.model = None
-        self.names: dict[int, str] = {0: "debris_0", 1: "debris_1"}
+        self.names: dict[int, str] = {0: "crab_pot"}
 
         if self.weights.is_file():
             try:
-                from ultralytics import YOLO  # lazy import inside try-catch
+                from ultralytics import YOLO
 
                 path = str(self.weights.resolve())
                 if (
@@ -112,84 +58,45 @@ class InferenceService:
                 self.inference_mode = "real"
                 logger.info("Loaded real YOLOv8 weights from %s", path)
             except Exception as exc:
-                logger.warning(
-                    "Failed to load weights from %s (%s). Falling back to mock mode.",
-                    self.weights,
-                    exc,
-                )
+                logger.warning("Failed to load weights from %s (%s). Using mock mode.", self.weights, exc)
                 self.loaded = False
                 self.inference_mode = "mock"
                 self.model = None
         else:
-            logger.info(
-                "Model weights not found at %s. Initialized in mock inference mode.",
-                self.weights,
-            )
+            logger.info("Weights not found at %s. Initialized in mock mode.", self.weights)
             self.loaded = False
             self.inference_mode = "mock"
 
     def _mock_predict(self, image_bgr: np.ndarray) -> list[dict[str, Any]]:
-        """Generates deterministic mock detections on sonar image frame."""
+        """Generates deterministic mock detections for testing fallback."""
         height, width = image_bgr.shape[:2]
         mock_specs = [
-            {
-                "rel_x": 0.35,
-                "rel_y": 0.30,
-                "rel_w": 0.15,
-                "rel_h": 0.18,
-                "conf": 0.88,
-                "class": "debris_0",
-            },
-            {
-                "rel_x": 0.60,
-                "rel_y": 0.52,
-                "rel_w": 0.12,
-                "rel_h": 0.14,
-                "conf": 0.74,
-                "class": "debris_1",
-            },
+            {"rel_x1": 0.30, "rel_y1": 0.25, "rel_w": 0.16, "rel_h": 0.18, "conf": 0.87, "class": "crab_pot"},
+            {"rel_x1": 0.58, "rel_y1": 0.50, "rel_w": 0.14, "rel_h": 0.15, "conf": 0.76, "class": "crab_pot"},
         ]
         detections = []
         for idx, spec in enumerate(mock_specs, start=1):
-            x = max(0, min(width - 10, int(round(width * spec["rel_x"]))))
-            y = max(0, min(height - 10, int(round(height * spec["rel_y"]))))
-            w = max(10, min(width - x, int(round(width * spec["rel_w"]))))
-            h = max(10, min(height - y, int(round(height * spec["rel_h"]))))
-            bbox = {"x": x, "y": y, "width": w, "height": h}
+            x1 = int(round(width * spec["rel_x1"]))
+            y1 = int(round(height * spec["rel_y1"]))
+            w = int(round(width * spec["rel_w"]))
+            h = int(round(height * spec["rel_h"]))
+            x2 = x1 + w
+            y2 = y1 + h
+            bbox = {"x1": x1, "y1": y1, "x2": x2, "y2": y2, "x": x1, "y": y1, "width": w, "height": h}
             conf = spec["conf"]
             cls_name = spec["class"]
-            risk_level, risk_score = _safe_compute_risk(
-                bbox=bbox,
-                width=width,
-                height=height,
-                conf=conf,
-                class_name=cls_name,
-            )
-            detections.append(
-                {
-                    "id": f"det_{idx:03d}",
-                    "class": cls_name,
-                    "confidence": conf,
-                    "bbox": bbox,
-                    "risk_level": risk_level,
-                    "risk_score": risk_score,
-                }
-            )
+            detections.append({
+                "id": f"det_{idx:03d}",
+                "class": cls_name,
+                "confidence": conf,
+                "bbox": bbox,
+                "risk_level": "medium",
+                "risk_score": 0.65,
+            })
         return detections
 
     def predict(self, image_bgr: np.ndarray, conf: float = 0.15) -> list[dict[str, Any]]:
-        """
-        Runs object detection inference on a BGR image.
-        If real weights are loaded, runs sonar noise filtering + YOLOv8 detection.
-        Otherwise, runs deterministic mock detection.
-
-        If a YOLOv8-seg model is loaded, mask_points will contain polygon coordinates
-        normalized to [0, 1]. With a detection-only model, mask_points will be None.
-
-        Args:
-            image_bgr: Input image in BGR format.
-            conf: Detection confidence threshold (default 0.15).
-        """
+        """Runs sonar noise filtering + YOLOv8 object detection."""
         height, width = image_bgr.shape[:2]
 
         if not self.loaded or self.model is None:
@@ -197,11 +104,9 @@ class InferenceService:
 
         try:
             cleaned = filter_sonar_noise(image_bgr)
-            results = self.model.predict(
-                source=cleaned, conf=conf, imgsz=416, verbose=False
-            )
+            results = self.model.predict(source=cleaned, conf=conf, imgsz=640, verbose=False)
         except Exception as exc:
-            logger.error("Real inference execution failed: %s. Falling back to mock.", exc)
+            logger.error("Real inference execution failed: %s. Using mock fallback.", exc)
             return self._mock_predict(image_bgr)
 
         detections: list[dict[str, Any]] = []
@@ -212,7 +117,6 @@ class InferenceService:
         if boxes is None or len(boxes) == 0:
             return detections
 
-        # Check for segmentation masks (YOLOv8-seg models)
         masks = getattr(results[0], "masks", None)
 
         for index, box in enumerate(boxes, start=1):
@@ -226,31 +130,35 @@ class InferenceService:
                 x1, x2 = x2, x1
             if y2 < y1:
                 y1, y2 = y2, y1
-            x = int(round(x1))
-            y = int(round(y1))
-            box_w = int(round(x2 - x1))
-            box_h = int(round(y2 - y1))
-            box_w = max(0, min(width - x, box_w))
-            box_h = max(0, min(height - y, box_h))
-            cls_id = int(box.cls[0].item())
-            class_name = self.names.get(cls_id, f"debris_{cls_id}")
-            conf_val = float(box.conf[0].item())
-            bbox = {"x": x, "y": y, "width": box_w, "height": box_h}
-            risk_level, risk_score = _safe_compute_risk(
-                bbox=bbox,
-                width=width,
-                height=height,
-                conf=conf_val,
-                class_name=class_name,
-            )
 
-            # Extract segmentation mask polygon if available
+            ix1, iy1 = int(round(x1)), int(round(y1))
+            ix2, iy2 = int(round(x2)), int(round(y2))
+            w = max(1, ix2 - ix1)
+            h = max(1, iy2 - iy1)
+
+            cls_id = int(box.cls[0].item())
+            class_name = self.names.get(cls_id, "crab_pot")
+            # Map 'Crab-Pot' to 'crab_pot' for consistency
+            if class_name.lower().replace("-", "_") == "crab_pot":
+                class_name = "crab_pot"
+
+            conf_val = float(box.conf[0].item())
+            bbox = {
+                "x1": ix1,
+                "y1": iy1,
+                "x2": ix2,
+                "y2": iy2,
+                "x": ix1,
+                "y": iy1,
+                "width": w,
+                "height": h,
+            }
+
             mask_points: list[list[float]] | None = None
             if masks is not None:
                 try:
                     mask_xy = masks.xy[index - 1]
                     if mask_xy is not None and len(mask_xy) > 0:
-                        # Normalize to [0, 1]
                         mask_points = [
                             [float(pt[0]) / width, float(pt[1]) / height]
                             for pt in mask_xy
@@ -258,25 +166,61 @@ class InferenceService:
                 except Exception:
                     mask_points = None
 
-            detections.append(
-                {
-                    "id": f"det_{index:03d}",
-                    "class": class_name,
-                    "confidence": round(conf_val, 4),
-                    "bbox": bbox,
-                    "risk_level": risk_level,
-                    "risk_score": risk_score,
-                    "mask_points": mask_points,
-                }
-            )
+            detections.append({
+                "id": f"det_{index:03d}",
+                "class": class_name,
+                "confidence": round(conf_val, 4),
+                "bbox": bbox,
+                "risk_level": "medium",
+                "risk_score": round(conf_val, 2),
+                "mask_points": mask_points,
+            })
         return detections
 
+    def draw_annotations(self, image_bgr: np.ndarray, detections: list[dict[str, Any]]) -> np.ndarray:
+        """Draws green bounding boxes and label badges onto the sonar image."""
+        annotated = image_bgr.copy()
+        h, w = annotated.shape[:2]
+
+        # Color palette: Vibrant Green for detections
+        box_color = (45, 212, 191)  # BGR for teal/green #2dd4bf
+        text_bg_color = (18, 11, 5) # Dark badge
+
+        thickness = 2 if max(w, h) >= 600 else 1
+
+        for det in detections:
+            bbox = det.get("bbox", {})
+            x1 = int(bbox.get("x1", bbox.get("x", 0)))
+            y1 = int(bbox.get("y1", bbox.get("y", 0)))
+            x2 = int(bbox.get("x2", x1 + bbox.get("width", 0)))
+            y2 = int(bbox.get("y2", y1 + bbox.get("height", 0)))
+
+            # Draw green bounding box
+            cv2.rectangle(annotated, (x1, y1), (x2, y2), box_color, thickness)
+
+            # Label badge
+            cls_name = det.get("class", "crab_pot").replace("_", " ").title()
+            conf = det.get("confidence", 0.0)
+            label = f"{cls_name} {conf * 100:.0f}%"
+
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = 0.45
+            font_thickness = 1
+
+            (tw, th), baseline = cv2.getTextSize(label, font, font_scale, font_thickness)
+
+            # Label positioning (edge-safe)
+            ly1 = max(th + 4, y1 - 4)
+            ly2 = ly1 - th - 4
+            lx2 = min(w - 1, x1 + tw + 8)
+
+            cv2.rectangle(annotated, (x1, ly2), (lx2, ly1), text_bg_color, -1)
+            cv2.rectangle(annotated, (x1, ly2), (lx2, ly1), box_color, 1)
+            cv2.putText(annotated, label, (x1 + 4, ly1 - 3), font, font_scale, (255, 255, 255), font_thickness, cv2.LINE_AA)
+
+        return annotated
+
     def shadow_zones(self, image_bgr: np.ndarray) -> list[dict]:
-        """
-        Returns acoustic shadow zones for the given sonar image.
-        Uses the heuristic from preprocess_sonar.detect_acoustic_shadows().
-        Always returns a list (empty if detection fails or import unavailable).
-        """
         try:
             return detect_acoustic_shadows(image_bgr)
         except Exception as exc:

@@ -53,7 +53,6 @@ export default function MapView() {
   useEffect(() => {
     if (!run || located.length === 0 || !mapEl.current) return
 
-    // Clean up any existing map instance
     if (mapInstance.current) {
       mapInstance.current.remove()
       mapInstance.current = null
@@ -65,7 +64,6 @@ export default function MapView() {
     })
     mapInstance.current = map
 
-    // High quality dark seafloor map tiles
     L.tileLayer(
       'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
       {
@@ -166,18 +164,20 @@ export default function MapView() {
               <line x1="4" y1="4" x2="20" y2="20" stroke="#f43f5e" strokeWidth="2" />
             </svg>
           </div>
-          <p className="kicker">No geolocation data</p>
-          <h2>No navigation metadata</h2>
-          <p className="muted" style={{ maxWidth: '32rem', margin: '0 auto 24px' }}>
-            No GPS or heading data was attached with <code>{run.filename}</code>.
-            Coordinates are never invented — attach a metadata file with lat, lon, heading, and pixel_size_m to enable the map.
+          <p className="kicker">Geospatial Telemetry Unavailable</p>
+          <h2 style={{ fontSize: '1.25rem', color: 'var(--amber)' }}>
+            Map unavailable — sonar metadata does not contain geolocation.
+          </h2>
+          <p className="muted" style={{ maxWidth: '34rem', margin: '12px auto 24px' }}>
+            No GPS or heading data was attached with <code>{run.filename}</code>.<br />
+            Geolocation coordinates are strictly extracted from real navigation headers; fake coordinates are never created.
           </p>
           <div className="actions" style={{ justifyContent: 'center' }}>
             <Link className="btn btn-primary" to={`/runs/${run.id}`}>
               Back to Result
             </Link>
             <Link className="btn btn-secondary" to="/">
-              Upload with metadata
+              Upload image with metadata
             </Link>
           </div>
         </div>
@@ -190,7 +190,7 @@ export default function MapView() {
       <div className="result-header">
         <div>
           <div className="header-meta-row">
-            <span className="kicker">Map</span>
+            <span className="kicker">GIS Map</span>
             <span className={`mode-badge ${modelInfo.isMock ? 'mode-badge-mock' : 'mode-badge-real'}`}>
               <span className="mode-dot" />
               {modelInfo.badgeLabel}

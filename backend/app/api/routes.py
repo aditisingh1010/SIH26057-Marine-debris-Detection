@@ -11,12 +11,15 @@ from fastapi.responses import FileResponse
 from app.core.config import settings
 from app.schemas import (
     BatchResult,
+    BBox,
     Detection,
+    Geolocation,
     RunResult,
     RunSummary,
     ShadowZone,
     SystemInfo,
 )
+from app.services.filtering import filter_detections
 from app.services.geolocation import geolocate_box
 from app.services.metadata import parse_metadata_text
 from app.services.store import read_json, run_dir, write_csv, write_json
@@ -51,44 +54,93 @@ def _process_image(
     filename: str,
     inference,
     parsed_meta: dict | None,
-    conf_threshold: float = 0.15,
+    conf_threshold: float = 0.25,
 ) -> RunResult:
-    """Core detection logic shared by /detect and /detect/batch."""
+    """Core detection, noise filtering, annotation drawing, and report generation logic."""
     image = cv2.imdecode(np.frombuffer(contents, dtype=np.uint8), cv2.IMREAD_COLOR)
     if image is None:
-        raise HTTPException(status_code=400, detail="unreadable image")
+        raise HTTPException(status_code=400, detail="unreadable or invalid image")
 
     height, width = image.shape[:2]
-    raw_detections = inference.predict(image, conf=conf_threshold)
+
+    # 1. Raw YOLO inference
+    raw_preds = inference.predict(image, conf=0.05)  # low threshold for raw detections
+
+    # 2. Transparent confidence + noise post-processing filter
+    filter_res = filter_detections(
+        raw_detections=raw_preds,
+        image_width=width,
+        image_height=height,
+        conf_threshold=conf_threshold,
+    )
+
+    raw_det_dicts = filter_res["raw_detections"]
+    filtered_det_dicts = filter_res["filtered_detections"]
+
     inference_mode = getattr(
         inference, "inference_mode", "real" if getattr(inference, "loaded", False) else "mock"
     )
 
-    # Acoustic shadow zones (heuristic)
-    raw_shadows = inference.shadow_zones(image)
-    shadow_zones = [ShadowZone(**sz) for sz in raw_shadows]
+    # 3. Geolocation handling
+    geo_available = False
+    geo_note = "Geolocation unavailable: sonar metadata not provided."
 
-    detections = []
-    for det in raw_detections:
+    if parsed_meta and ("latitude" in parsed_meta or "lat" in parsed_meta):
+        geo_available = True
+        geo_note = "Sonar metadata attached."
+
+    # Convert detection dicts to Pydantic models
+    raw_models: list[Detection] = []
+    for det in raw_det_dicts:
         geo = geolocate_box(det["bbox"], width, height, parsed_meta)
-        detections.append(
-            Detection.model_validate(
-                {
-                    "id": det["id"],
-                    "class": det["class"],
-                    "confidence": det["confidence"],
-                    "bbox": det["bbox"],
-                    "geolocation": geo,
-                    "risk_level": det.get("risk_level", "medium"),
-                    "risk_score": det.get("risk_score", 0.5),
-                    "mask_points": det.get("mask_points"),
-                }
+        b = det["bbox"]
+        bbox_obj = BBox(
+            x=int(b.get("x", 0)),
+            y=int(b.get("y", 0)),
+            width=int(b.get("width", 0)),
+            height=int(b.get("height", 0)),
+            x1=int(b.get("x1", b.get("x", 0))),
+            y1=int(b.get("y1", b.get("y", 0))),
+            x2=int(b.get("x2", b.get("x", 0) + b.get("width", 0))),
+            y2=int(b.get("y2", b.get("y", 0) + b.get("height", 0))),
+        )
+        raw_models.append(
+            Detection(
+                id=det["id"],
+                class_name=det["class"],
+                confidence=det["confidence"],
+                bbox=bbox_obj,
+                geolocation=Geolocation(
+                    latitude=geo.latitude if geo_available else None,
+                    longitude=geo.longitude if geo_available else None,
+                    status=geo.status if geo_available else "unavailable"
+                ),
+                risk_level=det.get("risk_level", "medium"),
+                risk_score=det.get("risk_score", 0.5),
+                passed_filter=det.get("passed_filter", True),
+                rejection_reason=det.get("rejection_reason"),
+                mask_points=det.get("mask_points"),
             )
         )
 
+    filtered_models: list[Detection] = [d for d in raw_models if d.passed_filter]
+
+    # Acoustic shadow zones (experimental heuristic)
+    raw_shadows = inference.shadow_zones(image)
+    shadow_zones = [ShadowZone(**sz) for sz in raw_shadows]
+
     run_id = "run_" + secrets.token_hex(6)
-    dest = run_dir(run_id) / filename
-    dest.write_bytes(contents)
+    rdir = run_dir(run_id)
+
+    # Save original image
+    raw_dest = rdir / filename
+    raw_dest.write_bytes(contents)
+
+    # Draw & save green bounding box annotated image
+    annotated_img = inference.draw_annotations(image, [d.model_dump(by_alias=True) for d in filtered_models])
+    annotated_filename = f"{Path(filename).stem}_annotated.jpg"
+    annotated_dest = rdir / annotated_filename
+    cv2.imwrite(str(annotated_dest), annotated_img)
 
     result = RunResult(
         id=run_id,
@@ -98,9 +150,18 @@ def _process_image(
         image_width=int(width),
         image_height=int(height),
         metadata_attached=parsed_meta is not None,
-        detections=detections,
+        conf_threshold=conf_threshold,
+        raw_detections=raw_models,
+        filtered_detections=filtered_models,
+        detections=filtered_models,
         shadow_zones=shadow_zones,
+        geolocation_available=geo_available,
+        geolocation_note=geo_note,
+        annotated_image_url=f"/api/v1/runs/{run_id}/image/annotated",
+        json_report_url=f"/api/v1/runs/{run_id}/report.json",
+        csv_report_url=f"/api/v1/runs/{run_id}/report.csv",
     )
+
     payload = result.model_dump(by_alias=True)
     write_json(run_id, payload)
     write_csv(run_id, payload)
@@ -127,16 +188,10 @@ def system_info(request: Request) -> SystemInfo:
     inference = getattr(request.app.state, "inference", None)
     loaded = bool(inference and getattr(inference, "loaded", False))
 
-    classes: list[str] = []
+    classes: list[str] = ["crab_pot"]
     seg_support = False
     if inference and hasattr(inference, "names") and inference.names:
-        classes = list(inference.names.values())
-    if not classes:
-        classes = ["marine_debris", "seabed_object"]
-
-    if inference and hasattr(inference, "model") and inference.model is not None:
-        task = getattr(inference.model, "task", "detect")
-        seg_support = task == "segment"
+        classes = list(set(inference.names.values()))
 
     onnx_path = settings.model_path.parent / "best.onnx"
     onnx_available = onnx_path.is_file()
@@ -149,7 +204,7 @@ def system_info(request: Request) -> SystemInfo:
         onnx_available=onnx_available,
         metadata_formats=["json", "csv", "xtf"],
         max_upload_mb=settings.max_upload_mb,
-        confidence_threshold=0.15,
+        confidence_threshold=settings.default_conf_threshold,
     )
 
 
@@ -158,7 +213,7 @@ def detect(
     request: Request,
     file: UploadFile = File(...),
     metadata: UploadFile | None = File(default=None),
-    conf_threshold: float = Query(default=0.15, ge=0.05, le=0.95),
+    conf_threshold: float = Query(default=0.25, ge=0.05, le=0.95),
 ) -> RunResult:
     filename = _safe_filename(file.filename)
     suffix = Path(filename).suffix.lower()
@@ -179,7 +234,6 @@ def detect(
         meta_fname = (metadata.filename or "").lower()
         try:
             if meta_fname.endswith(".xtf"):
-                # Try XTF binary parser first
                 import tempfile, os
                 from app.services.xtf_parser import parse_xtf_navigation
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".xtf") as tmp:
@@ -196,7 +250,7 @@ def detect(
         except (UnicodeDecodeError, ValueError) as exc:
             raise HTTPException(status_code=400, detail="invalid metadata") from exc
         except Exception:
-            parsed_meta = None  # XTF parse failure is non-fatal
+            parsed_meta = None
 
     inference = _get_inference(request)
     return _process_image(contents, filename, inference, parsed_meta, conf_threshold)
@@ -206,12 +260,8 @@ def detect(
 def detect_batch(
     request: Request,
     files: list[UploadFile] = File(...),
-    conf_threshold: float = Query(default=0.15, ge=0.05, le=0.95),
+    conf_threshold: float = Query(default=0.25, ge=0.05, le=0.95),
 ) -> BatchResult:
-    """
-    Process multiple sonar images in one request.
-    Max 10 files per batch. No metadata support in batch mode.
-    """
     if len(files) > 10:
         raise HTTPException(status_code=400, detail="max 10 files per batch")
 
@@ -248,7 +298,6 @@ def detect_batch(
 
 @router.get("/runs", response_model=list[RunSummary])
 def list_runs() -> list[RunSummary]:
-    """List all past detection runs, most recent first. Capped at 50."""
     runs_dir = settings.storage_dir / "runs"
     if not runs_dir.exists():
         return []
@@ -267,7 +316,7 @@ def list_runs() -> list[RunSummary]:
                 id=payload.get("id", rd.name),
                 filename=payload.get("filename", ""),
                 inference_mode=payload.get("inference_mode", "unknown"),
-                detection_count=len(payload.get("detections", [])),
+                detection_count=len(payload.get("filtered_detections") or payload.get("detections") or []),
             ))
         except Exception:
             continue
@@ -292,6 +341,22 @@ def get_run_image(run_id: str) -> FileResponse:
     if not path.is_file():
         raise HTTPException(status_code=404, detail="image not found")
     return FileResponse(path)
+
+
+@router.get("/runs/{run_id}/image/annotated")
+def get_run_image_annotated(run_id: str) -> FileResponse:
+    payload = read_json(run_id)
+    if payload is None:
+        raise HTTPException(status_code=404, detail="run not found")
+    filename = _safe_filename(payload.get("filename"))
+    annotated_filename = f"{Path(filename).stem}_annotated.jpg"
+    path = run_dir(run_id, create=False) / annotated_filename
+    if not path.is_file():
+        # Fallback to original image if annotated image not generated
+        path = run_dir(run_id, create=False) / filename
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="image not found")
+    return FileResponse(path, media_type="image/jpeg")
 
 
 @router.get("/runs/{run_id}/report.json")

@@ -30,10 +30,10 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <NavLink to="/" className="brand" end>
-          <span className="brand-mark">AX</span>
+          <span className="brand-mark">SA</span>
           <span>
-            <span className="brand-name">AQUAX</span>
-            <span className="brand-sub">Marine debris detection</span>
+            <span className="brand-name">SONAR AQUA</span>
+            <span className="brand-sub">Marine Debris Detection MVP</span>
           </span>
         </NavLink>
         <nav className="nav">
@@ -50,7 +50,7 @@ export default function App() {
           {modelOk === null
             ? 'API…'
             : modelOk
-            ? `YOLOv8n (${modelName || 'best.pt'}) | ${isMock ? 'MOCK' : 'REAL'}`
+            ? `YOLOv8n Ghost Pot Baseline | ${isMock ? 'MOCK' : 'REAL GPU'}`
             : 'MODEL OFFLINE'}
         </span>
       </header>

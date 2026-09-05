@@ -2,10 +2,18 @@ import csv
 import io
 import json
 
-LAT_ALIASES = ("lat", "latitude")
-LON_ALIASES = ("lon", "lng", "long", "longitude")
-HEAD_ALIASES = ("heading", "course", "yaw")
-PIX_ALIASES = ("pixel_size_m", "pixel_size", "gsd")
+LAT_ALIASES = ("lat", "latitude", "nav_lat", "sensor_y", "sensor_ycoordinate")
+LON_ALIASES = ("lon", "lng", "long", "longitude", "nav_lon", "sensor_x", "sensor_xcoordinate")
+HEAD_ALIASES = ("heading", "course", "yaw", "sensor_heading", "heading_deg")
+PIX_ALIASES = (
+    "pixel_size_m",
+    "pixel_size",
+    "gsd",
+    "resolution_m",
+    "x_resolution_m",
+    "across_track_res_m",
+    "pixel_resolution",
+)
 
 _EMPTY = {
     "latitude": None,

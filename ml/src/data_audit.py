@@ -22,8 +22,7 @@ from typing import Dict, List, Optional, Tuple
 
 # ---------------------------------------------------------------------------
 IMAGE_EXTENSIONS: frozenset = frozenset({".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"})
-KNOWN_CLASS_IDS: Tuple[int, ...] = (0, 1)
-CLASS_NAMES: Dict[int, str] = {0: "debris_0", 1: "debris_1"}
+CLASS_NAMES: Dict[int, str] = {}
 
 
 # ---------------------------------------------------------------------------
@@ -57,8 +56,8 @@ def _parse_yolo_label(
             errors.append(f"{label_path.name}:{line_no} -- non-numeric field(s)")
             continue
 
-        if cls not in KNOWN_CLASS_IDS:
-            errors.append(f"{label_path.name}:{line_no} -- unknown class id {cls}")
+        if cls < 0:
+            errors.append(f"{label_path.name}:{line_no} -- invalid class id {cls}")
         for val, name in ((cx, "cx"), (cy, "cy"), (bw, "bw"), (bh, "bh")):
             if not (0.0 <= val <= 1.0):
                 errors.append(
@@ -87,7 +86,7 @@ def audit_directory(survey_dir: Path) -> Dict:
     labeled_images = 0
     background_images = 0
     total_annotations = 0
-    class_counts: Dict[int, int] = {cid: 0 for cid in KNOWN_CLASS_IDS}
+    class_counts: Dict[int, int] = {}
     format_errors: List[str] = []
     images_without_label: List[str] = []
 
@@ -105,8 +104,7 @@ def audit_directory(survey_dir: Path) -> Dict:
             labeled_images += 1
             total_annotations += len(annotations)
             for cls, *_ in annotations:
-                if cls in class_counts:
-                    class_counts[cls] += 1
+                class_counts[cls] = class_counts.get(cls, 0) + 1
         else:
             background_images += 1
 
@@ -116,7 +114,7 @@ def audit_directory(survey_dir: Path) -> Dict:
         "labeled_images": labeled_images,
         "background_images": background_images,
         "total_annotations": total_annotations,
-        "class_counts": {CLASS_NAMES.get(k, str(k)): v for k, v in class_counts.items()},
+        "class_counts": {CLASS_NAMES.get(k, f"class_{k}"): v for k, v in class_counts.items()},
         "format_error_count": len(format_errors),
         "format_errors": format_errors[:20],
         "images_without_label_file": images_without_label,
@@ -129,15 +127,33 @@ def audit_dataset(dataset_root: Path) -> Dict:
         raise FileNotFoundError(f"Dataset root not found: {dataset_root}")
 
     survey_dirs = sorted(d for d in dataset_root.iterdir() if d.is_dir())
+    has_root_images = any(
+        p.is_file() and p.suffix.lower() in IMAGE_EXTENSIONS for p in dataset_root.iterdir()
+    )
     if not survey_dirs:
-        raise ValueError(f"No sub-directories found under: {dataset_root}")
+        if not has_root_images:
+            raise ValueError(f"No sub-directories or images found under: {dataset_root}")
+        report = audit_directory(dataset_root)
+        return {
+            "dataset_root": str(dataset_root.resolve()),
+            "surveys_found": [dataset_root.name],
+            "summary": {
+                "total_images": report["total_images"],
+                "labeled_images": report["labeled_images"],
+                "background_images": report["background_images"],
+                "total_annotations": report["total_annotations"],
+                "class_counts": report["class_counts"],
+                "total_format_errors": report["format_error_count"],
+            },
+            "per_survey": [report],
+        }
 
     per_survey: List[Dict] = []
     grand_total_images = 0
     grand_labeled = 0
     grand_background = 0
     grand_annotations = 0
-    grand_class_counts: Dict[str, int] = {v: 0 for v in CLASS_NAMES.values()}
+    grand_class_counts: Dict[str, int] = {}
     total_errors = 0
 
     for sdir in survey_dirs:

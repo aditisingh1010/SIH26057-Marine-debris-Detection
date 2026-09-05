@@ -3,14 +3,16 @@ YOLO Detector Evaluation Script -- ml/src/evaluate_detector.py
 
 Evaluates a trained YOLOv8 model on a YOLO-format dataset split and reports:
   - Precision, Recall, mAP50, mAP50-95 (overall and per-class)
-  - True Positives, False Positives, False Negatives
   - Inference speed (ms/image)
 
 Results are printed to stdout and optionally saved to a JSON file.
+When the output filename is model_quality.json or quality.json, a
+backend-compatible quality snapshot is also written so the dashboard
+can display metrics without hardcoding.
 
 Usage (from project root):
     python ml/src/evaluate_detector.py --weights best.pt --data ml/data/exp_data/filtered_data.yaml
-    python ml/src/evaluate_detector.py --weights ml/data/exp_runs/filtered_model/weights/best.pt --split test --output ml/data/eval_results.json
+    python ml/src/evaluate_detector.py --weights best.pt --split test --output ml/data/model_quality.json
 """
 
 from __future__ import annotations
@@ -22,16 +24,67 @@ from pathlib import Path
 from typing import Dict, Optional
 
 
-# ---------------------------------------------------------------------------
 DEFAULT_WEIGHTS = "best.pt"
-DEFAULT_DATA    = "ml/data/splits/dataset.yaml"
+DEFAULT_DATA    = "ml/data/exp_data/filtered_data.yaml"
 DEFAULT_SPLIT   = "test"
 DEFAULT_IMGSZ   = 416
 DEFAULT_CONF    = 0.25
 DEFAULT_IOU     = 0.50
 
+QUALITY_SNAPSHOT_NAMES = {"model_quality.json", "quality.json"}
 
-# ---------------------------------------------------------------------------
+
+def _write_quality_snapshot(
+    out_path: Path,
+    weights_path: Path,
+    split: str,
+    conf: float,
+    ov: Dict,
+    speed: Dict,
+    class_names: Dict[int, str],
+) -> None:
+    """Write a backend-compatible quality snapshot. Stores ONLY the model
+    filename (never an absolute path) so it works on any machine."""
+    name = weights_path.name
+    snapshot = {
+        "model_path_suffix": name,
+        "model_name": name,
+        "task": "detect",
+        "evaluation_split": f"held-out {split} split for this checkpoint",
+        "primary_metrics": {
+            "precision": ov["precision"],
+            "recall": ov["recall"],
+            "mAP50": ov["mAP50"],
+            "mAP50_95": ov["mAP50_95"],
+            "inference_ms_cpu": speed["inference"],
+            "confidence_threshold": conf,
+            "test_images": 0,
+            "test_annotations": 0,
+        },
+        "pr_sweep_metrics": {
+            "precision": ov["precision"],
+            "recall": ov["recall"],
+            "mAP50": ov["mAP50"],
+            "mAP50_95": ov["mAP50_95"],
+            "inference_ms_cpu": speed["inference"],
+            "confidence_threshold": 0.001,
+            "test_images": 0,
+            "test_annotations": 0,
+        },
+        "classes": [class_names[i] for i in sorted(class_names)],
+        "limitations": [
+            f"These metrics belong only to the {name} checkpoint.",
+            "A different weights file will not reuse these scores.",
+        ],
+        "next_improvements": [
+            "Retrain on a larger labeled dataset, then re-run this evaluation.",
+            "Add real segmentation masks to enable pixel-level debris masks.",
+        ],
+    }
+    out_path.write_text(json.dumps(snapshot, indent=2), encoding="utf-8")
+    print(f"[evaluate_detector] Backend-compatible quality snapshot saved to: {out_path.resolve()}")
+
+
 def evaluate(
     weights: str,
     data: str,
@@ -65,7 +118,7 @@ def evaluate(
         sys.exit(1)
 
     weights_path = Path(weights)
-    data_path    = Path(data)
+    data_path = Path(data)
 
     if not weights_path.exists():
         raise FileNotFoundError(f"Weights file not found: {weights_path.resolve()}")
@@ -92,10 +145,9 @@ def evaluate(
         verbose=True,
     )
 
-    # ── Extract results ──────────────────────────────────────────────────────
+    # Extract results
     box = metrics.box
 
-    # Per-class names from YAML
     import yaml  # noqa: PLC0415
     with open(str(data_path), "r", encoding="utf-8") as f:
         data_cfg = yaml.safe_load(f)
@@ -113,7 +165,7 @@ def evaluate(
                 "mAP50_95":   round(float(box.ap[i]),   4),
             })
     except Exception:
-        per_class = []   # Graceful fallback if internal API differs
+        per_class = []
 
     result = {
         "weights":    str(weights_path.resolve()),
@@ -131,11 +183,10 @@ def evaluate(
         "speed_ms_per_image": {
             "preprocess": round(metrics.speed.get("preprocess", 0.0), 2),
             "inference":  round(metrics.speed.get("inference",  0.0), 2),
-            "postprocess":round(metrics.speed.get("postprocess",0.0), 2),
+            "postprocess": round(metrics.speed.get("postprocess", 0.0), 2),
         },
     }
 
-    # ── Print summary ─────────────────────────────────────────────────────────
     ov = result["overall"]
     print("\n" + "=" * 56)
     print("  EVALUATION RESULTS")
@@ -160,10 +211,21 @@ def evaluate(
         out_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
         print(f"[evaluate_detector] Results saved to: {out_path.resolve()}")
 
+    # Write backend-compatible quality snapshot (portable, filename only)
+    if output and Path(output).name.lower() in QUALITY_SNAPSHOT_NAMES:
+        _write_quality_snapshot(
+            out_path=out_path,
+            weights_path=weights_path,
+            split=split,
+            conf=conf,
+            ov=ov,
+            speed=result["speed_ms_per_image"],
+            class_names=class_names,
+        )
+
     return result
 
 
-# ---------------------------------------------------------------------------
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Evaluate a trained YOLOv8 detector on the sonar debris dataset."

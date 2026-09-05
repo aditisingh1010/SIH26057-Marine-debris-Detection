@@ -1,20 +1,20 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
-// https://vite.dev/config/
+const apiProxy = process.env.API_PROXY || 'http://127.0.0.1:8000'
+
 export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    host: '127.0.0.1',
+    host: true,
     proxy: {
-      // Forward /api and /health requests to FastAPI backend
       '/api': {
-        target: 'http://127.0.0.1:8000',
+        target: apiProxy,
         changeOrigin: true,
       },
       '/health': {
-        target: 'http://127.0.0.1:8000',
+        target: apiProxy,
         changeOrigin: true,
       },
     },

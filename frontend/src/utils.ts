@@ -60,12 +60,11 @@ export function getModelMode(inferenceMode?: string | null, modelName?: string |
   }
 
   const cleanName = (modelName || 'best.pt').trim()
-  const isYolo = cleanName.toLowerCase().includes('yolo')
-  const displayModel = isYolo ? cleanName : `YOLOv8n (${cleanName})`
+  const displayModel = cleanName
 
   return {
     isMock: false,
-    badgeLabel: 'Real Model: YOLOv8n',
+    badgeLabel: `Real model: ${cleanName}`,
     fullName: displayModel,
   }
 }
@@ -77,11 +76,11 @@ export function formatConfidence(conf: number): string {
 export function formatGeoStatus(status: string): string {
   switch (status) {
     case 'computed':
-      return 'Exact (Ray-traced)'
+      return 'Approximate (pixel + heading)'
     case 'survey_position_only':
-      return 'Survey Position (Nadir)'
+      return 'Survey position only'
     case 'unavailable':
-      return 'Unavailable (No metadata)'
+      return 'Unavailable (no metadata)'
     default:
       return status.replace(/_/g, ' ')
   }

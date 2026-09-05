@@ -4,34 +4,41 @@ ml/.venv-hf/
 .uv-cache/
 __pycache__/
 *.pyc
+.pytest_cache/
 
 # Environment / secrets
 .env
 
-# ML data
+# ML dataset archives & local bulky folders
 ml/data/raw/
 ml/data/processed/
-
-# Trained models
-
-
-
-# Jupyter
-.ipynb_checkpoints/
-# Generated ML experiment & prediction data
 ml/data/exp_data/
 ml/data/exp_runs/
 ml/data/cleaned_predictions/
 ml/data/splits/
 ml/data/*.json
+ml/data/eval_runs/
+ml/data/merged_5class/
+ml/data/multiclass_dataset/
+ml/data/sonar_final_new/
+Dataset/AI4Shipwrecks/
+*.zip
+best_v2.pt
+downloads/
 runs/
 
 # Logs & OS artifacts
 *.log
 Thumbs.db
 .DS_Store
+desktop.ini
 
-# App runtime
+# App runtime & frontend builds
 storage/
 frontend/node_modules/
 frontend/dist/
+frontend/tsc_output.txt
+
+# Internal working docs (keep only README.md for GitHub)
+docs/
+PROJECT_COMPREHENSIVE_REPORT.md

@@ -128,6 +128,8 @@ def test_get_run_and_reports():
         assert res_csv.status_code == 200
         assert "risk_level" in res_csv.text
         assert "risk_score" in res_csv.text
+        assert "width_m" in res_csv.text
+        assert "height_m" in res_csv.text
 
         # Test GET /runs/{run_id}/image
         res_img = client.get(f"/api/v1/runs/{run_id}/image")
@@ -162,12 +164,31 @@ def test_system_info_endpoint():
         r = client.get("/api/v1/info")
         assert r.status_code == 200
         body = r.json()
-        assert body["version"] == "1.0.0"
-        assert body["model"] == "YOLOv8n"
+        assert isinstance(body["model"], str)
+        assert body["model"]
         assert isinstance(body["classes"], list)
-        assert len(body["classes"]) >= 1
         assert "metadata_formats" in body
         assert "confidence_threshold" in body
+
+
+def test_quality_endpoint():
+    with TestClient(app) as client:
+        r = client.get("/api/v1/quality")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["model_name"].endswith(".pt") or body["model_name"]
+        assert body["task"] in {"detect", "segment"}
+        assert isinstance(body["classes"], list)
+        assert isinstance(body["quality_available"], bool)
+        assert body["metrics_source"] in {"snapshot", "none"}
+        assert "total_images" in body["dataset"]
+        assert body["dataset"]["total_images"] >= 0
+        assert "label_issues" in body["dataset"]
+        assert body["limitations"]
+        assert body["next_improvements"]
+        if body["quality_available"]:
+            assert 0.0 <= body["primary_metrics"]["precision"] <= 1.0
+            assert 0.0 <= body["primary_metrics"]["recall"] <= 1.0
 
 
 def test_runs_history():

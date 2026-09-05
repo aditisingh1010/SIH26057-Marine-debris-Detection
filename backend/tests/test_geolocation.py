@@ -46,3 +46,23 @@ def test_heading_90_degrees_rotates_east_offset_to_north():
     assert a["longitude"] != 73.0
     assert b["longitude"] == 73.0
     assert b["latitude"] != 15.0
+
+
+def test_box_size_meters():
+    from app.services.geolocation import box_size_meters
+
+    w, h = box_size_meters({"x": 0, "y": 0, "width": 20, "height": 10}, 0.5)
+    assert w == 10.0
+    assert h == 5.0
+    assert box_size_meters({"width": 10, "height": 10}, None) == (None, None)
+
+
+def test_polar_longitude_does_not_explode():
+    geo = geolocate_box(
+        {"x": 90, "y": 40, "width": 10, "height": 10},
+        100,
+        100,
+        {"latitude": 90.0, "longitude": 0.0, "pixel_size_m": 1.0, "heading": 0.0},
+    )
+    assert geo["status"] == "computed"
+    assert geo["longitude"] == 0.0

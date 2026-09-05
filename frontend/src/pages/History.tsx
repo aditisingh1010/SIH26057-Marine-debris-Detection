@@ -4,6 +4,13 @@ import { getRuns } from "../api";
 import type { RunSummary } from "../types";
 import { getModelMode } from "../utils";
 
+function formatWhen(value?: string | null): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString();
+}
+
 export default function History() {
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +57,10 @@ export default function History() {
             <thead>
               <tr>
                 <th>File</th>
-                <th>Mode</th>
+                <th>When</th>
+                <th>Model</th>
+                <th>Op mode</th>
+                <th>GPS</th>
                 <th>Detections</th>
                 <th></th>
               </tr>
@@ -68,12 +78,15 @@ export default function History() {
                       <span className="history-filename">{run.filename}</span>
                       <span className="history-id">{run.id}</span>
                     </td>
+                    <td className="muted">{formatWhen(run.created_at)}</td>
                     <td>
                       <span className={`mode-badge ${mode.isMock ? "mode-badge-mock" : "mode-badge-real"}`}>
                         <span className="mode-dot" />
                         {mode.isMock ? "MOCK" : "REAL"}
                       </span>
                     </td>
+                    <td>{(run.detection_mode || "demo").toUpperCase()}</td>
+                    <td>{run.geolocation_available ? "yes" : "no"}</td>
                     <td>
                       <span className="detection-count-pill">{run.detection_count}</span>
                     </td>
@@ -83,8 +96,18 @@ export default function History() {
                         to={`/runs/${run.id}`}
                         onClick={(e) => e.stopPropagation()}
                       >
-                        View →
+                        View
                       </Link>
+                      {run.geolocation_available ? (
+                        <Link
+                          className="btn btn-secondary"
+                          to={`/runs/${run.id}/map`}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ marginLeft: 6 }}
+                        >
+                          Map
+                        </Link>
+                      ) : null}
                     </td>
                   </tr>
                 );

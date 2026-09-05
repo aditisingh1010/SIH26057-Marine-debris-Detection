@@ -49,6 +49,9 @@ export default function MapView() {
   }, [id])
 
   const located = run ? locatedDetections(run) : []
+  const surveyOnly =
+    located.length > 0 && located.every((d) => d.geolocation.status === 'survey_position_only')
+  const computedCount = located.filter((d) => d.geolocation.status === 'computed').length
 
   useEffect(() => {
     if (!run || located.length === 0 || !mapEl.current) return
@@ -169,8 +172,9 @@ export default function MapView() {
             Map unavailable — sonar metadata does not contain geolocation.
           </h2>
           <p className="muted" style={{ maxWidth: '34rem', margin: '12px auto 24px' }}>
-            No GPS or heading data was attached with <code>{run.filename}</code>.<br />
-            Geolocation coordinates are strictly extracted from real navigation headers; fake coordinates are never created.
+            No GPS was attached with <code>{run.filename}</code>.
+            Coordinates are read from navigation metadata only; none are invented.
+            Re-run detection with a JSON/CSV/XTF nav file that includes latitude and longitude.
           </p>
           <div className="actions" style={{ justifyContent: 'center' }}>
             <Link className="btn btn-primary" to={`/runs/${run.id}`}>
@@ -198,8 +202,13 @@ export default function MapView() {
           </div>
           <h1 className="result-filename">{run.filename}</h1>
           <p className="lede">
-            {located.length} geolocated detection{located.length === 1 ? '' : 's'}.
+            {located.length} mapped detection{located.length === 1 ? '' : 's'}
+            {computedCount > 0 ? ` · ${computedCount} with approximate object coordinates` : ''}.
+            {surveyOnly
+              ? ' All pins share the survey/towfish position because pixel size was not provided.'
+              : ''}
           </p>
+          {run.geolocation_note ? <p className="muted">{run.geolocation_note}</p> : null}
         </div>
 
         <div className="header-actions">

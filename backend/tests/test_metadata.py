@@ -17,6 +17,17 @@ def test_csv_aliases():
     assert meta["pixel_size_m"] == 0.5
 
 
+def test_json_extra_aliases():
+    meta = parse_metadata_text(
+        '{"nav_lat": 8.1, "nav_lon": 77.5, "resolution_m": 0.2, "heading_deg": 45}',
+        "nav.json",
+    )
+    assert meta["latitude"] == 8.1
+    assert meta["longitude"] == 77.5
+    assert meta["pixel_size_m"] == 0.2
+    assert meta["heading"] == 45.0
+
+
 def test_bad_json_raises():
     with pytest.raises(ValueError):
         parse_metadata_text("{not json", "nav.json")

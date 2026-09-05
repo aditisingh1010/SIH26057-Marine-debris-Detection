@@ -1,10 +1,9 @@
 """
 Sonar Image Preprocessing and Noise-Filtering Module.
 
-Applies conservative, mild edge-preserving noise reduction tailored for side-scan
-sonar (SSS) imagery. Preserves fine object highlight details, acoustic shadow
-boundaries, and subtle seabed texture while attenuating persistent lateral sensor
-acquisition line artifacts along the outer image margins.
+Applies conservative, edge-preserving noise reduction tailored for side-scan
+and forward-looking sonar imagery. Preserves object highlight edges and
+acoustic shadow boundaries while smoothing high-frequency speckle noise.
 """
 
 from __future__ import annotations
@@ -24,54 +23,39 @@ def attenuate_lateral_artifacts(
     margin_fraction: float = 0.035,
 ) -> np.ndarray:
     """
-    Conservatively attenuates persistent vertical acquisition line artifacts
-    at the extreme left and right margins of side-scan sonar images.
+    Conservatively attenuate persistent vertical acquisition-line artifacts.
 
-    Applies a smooth cubic fade ramp to subtract the systematic outer-swath
-    column baseline offset, preserving 2D texture and leaving the central sonar
-    channel and all interior content completely untouched.
-
-    Args:
-        image: Input sonar image array (uint8).
-        margin_fraction: Fraction of image width for the outer margin band (default: 0.035).
-
-    Returns:
-        Image array with side acquisition line artifacts attenuated.
+    Side-scan sonar strips often contain bright/dark line bias near the outer
+    swath margins. This adjusts only those margins with a smooth ramp and leaves
+    the central image content untouched.
     """
     if image is None or image.size == 0:
         raise ValueError("Input image is empty or invalid.")
 
-    h, w = image.shape[:2]
-    margin = max(6, int(round(w * margin_fraction)))
-    if margin <= 0 or 2 * margin >= w:
-        return image
+    height, width = image.shape[:2]
+    margin = max(6, int(round(width * margin_fraction)))
+    if margin <= 0 or 2 * margin >= width:
+        return image.copy()
 
-    out = image.astype(np.float32)
-    is_color = len(image.shape) == 3
-    channels = 3 if is_color else 1
+    out = image.astype(np.float32, copy=True)
+    channel_views = [out[:, :, idx] for idx in range(out.shape[2])] if out.ndim == 3 else [out]
 
-    for c in range(channels):
-        ch = out[:, :, c] if is_color else out
-
-        # Left margin attenuation
-        col_means_left = np.mean(ch[:, : margin + 1], axis=0)
-        ref_left = col_means_left[margin]
+    for channel in channel_views:
+        left_means = np.mean(channel[:, : margin + 1], axis=0)
+        left_ref = left_means[margin]
         for x in range(margin):
             t = (margin - x) / margin
-            alpha = t * t * (3.0 - 2.0 * t)  # Smooth cubic Hermite curve
-            offset = (col_means_left[x] - ref_left) * alpha
-            ch[:, x] -= offset
+            alpha = t * t * (3.0 - 2.0 * t)
+            channel[:, x] -= (left_means[x] - left_ref) * alpha
 
-        # Right margin attenuation
-        col_means_right = np.mean(ch[:, w - margin - 1 :], axis=0)
-        ref_right = col_means_right[0]
-        for i, x in enumerate(range(w - margin, w)):
-            t = (i + 1) / margin
-            alpha = t * t * (3.0 - 2.0 * t)  # Smooth cubic Hermite curve
-            offset = (col_means_right[i + 1] - ref_right) * alpha
-            ch[:, x] -= offset
+        right_means = np.mean(channel[:, width - margin - 1 :], axis=0)
+        right_ref = right_means[0]
+        for idx, x in enumerate(range(width - margin, width)):
+            t = (idx + 1) / margin
+            alpha = t * t * (3.0 - 2.0 * t)
+            channel[:, x] -= (right_means[idx + 1] - right_ref) * alpha
 
-    return np.clip(out, 0, 255).astype(np.uint8)
+    return np.clip(out, 0, 255).astype(image.dtype, copy=False)
 
 
 def filter_sonar_noise(
@@ -83,39 +67,32 @@ def filter_sonar_noise(
     margin_fraction: float = 0.035,
 ) -> np.ndarray:
     """
-    Applies conservative noise reduction and side artifact attenuation.
+    Applies conservative bilateral filtering to reduce sonar speckle noise.
 
-    Priority:
-        Object visibility > Preserving sonar features > Artifact reduction > Smoothness.
-
-    - Side Artifact Attenuation: Specifically targets the outer ~3.5% margins to
-      attenuate persistent vertical acquisition line artifacts without touching
-      the central sonar channel or interior seabed.
-    - Mild Bilateral Filter: Uses conservative settings (d=5, sigma=25.0) to smooth
-      speckle noise while strictly preserving sharp debris highlights, acoustic
-      shadow boundaries, and fine seabed texture.
+    Bilateral filtering smooths uniform seafloor acoustic speckle noise while
+    strictly preserving steep intensity gradients at debris highlight edges
+    and acoustic shadows.
 
     Args:
         image: Input sonar image array (grayscale or BGR/RGB, uint8).
-        diameter: Neighborhood diameter for bilateral filtering.
-        sigma_color: Color/intensity sigma for bilateral filtering.
-        sigma_space: Coordinate space sigma for bilateral filtering.
-        suppress_side_artifacts: Whether to apply lateral artifact attenuation.
-        margin_fraction: Fraction of width for the outer margin transition band.
+        diameter: Diameter of pixel neighborhood used during filtering.
+        sigma_color: Filter sigma in the color/intensity space. Smaller values
+            keep intensity boundaries sharper.
+        sigma_space: Filter sigma in coordinate space.
+        suppress_side_artifacts: Whether to attenuate lateral acquisition lines.
+        margin_fraction: Fraction of image width treated as each outer margin.
 
     Returns:
-        Processed sonar image array with identical shape and dtype.
+        Denoised sonar image array with identical shape and dtype.
     """
     if image is None or image.size == 0:
         raise ValueError("Input image is empty or invalid.")
 
-    # 1. Attenuate side acquisition lines if enabled
-    if suppress_side_artifacts:
-        processed = attenuate_lateral_artifacts(image, margin_fraction=margin_fraction)
-    else:
-        processed = image
-
-    # 2. Apply mild bilateral filter
+    processed = (
+        attenuate_lateral_artifacts(image, margin_fraction=margin_fraction)
+        if suppress_side_artifacts
+        else image
+    )
     filtered = cv2.bilateralFilter(
         src=processed,
         d=diameter,
@@ -123,6 +100,121 @@ def filter_sonar_noise(
         sigmaSpace=sigma_space,
     )
     return filtered
+
+
+CLASS_HAZARD_WEIGHTS: dict[str, float] = {
+    "munition": 1.00,
+    "unexploded_ordnance": 1.00,
+    "hazard": 0.95,
+    "chemical_drum": 0.95,
+    "drum": 0.90,
+    "container": 0.90,
+    "wreck": 0.85,
+    "shipwreck": 0.85,
+    "pipe": 0.85,
+    "pipeline": 0.85,
+    "cable": 0.80,
+    "net": 0.80,
+    "ghost_net": 0.80,
+    "fishing_gear": 0.80,
+    "metal": 0.75,
+    "marine_debris": 0.75,
+    "seabed_object": 0.70,
+    "debris": 0.70,
+}
+
+
+def detect_acoustic_shadows(
+    image_bgr: np.ndarray,
+    highlight_thresh: int = 175,
+    shadow_thresh: int = 65,
+    min_area: int = 200,
+    max_zones: int = 10,
+) -> list[dict]:
+    """
+    Detect candidate acoustic-shadow zones next to bright highlight returns.
+
+    This is an explanatory heuristic for the dashboard and false-positive review,
+    not a replacement for model detections.
+    """
+    if image_bgr is None or image_bgr.size == 0:
+        return []
+
+    try:
+        gray = (
+            cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
+            if image_bgr.ndim == 3
+            else image_bgr.copy()
+        )
+        _, highlight_mask = cv2.threshold(gray, highlight_thresh, 255, cv2.THRESH_BINARY)
+        _, shadow_mask = cv2.threshold(gray, shadow_thresh, 255, cv2.THRESH_BINARY_INV)
+
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 5))
+        adjacent_region = cv2.dilate(highlight_mask, kernel, iterations=2)
+        adjacent_shadows = cv2.bitwise_and(shadow_mask, adjacent_region)
+
+        contours, _ = cv2.findContours(
+            adjacent_shadows, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+
+        zones: list[dict] = []
+        for contour in contours:
+            x, y, width, height = cv2.boundingRect(contour)
+            area = width * height
+            if area < min_area:
+                continue
+            zones.append(
+                {
+                    "x": int(x),
+                    "y": int(y),
+                    "width": int(width),
+                    "height": int(height),
+                    "adjacent_to_highlight": True,
+                }
+            )
+
+        zones.sort(key=lambda item: item["width"] * item["height"], reverse=True)
+        return zones[:max_zones]
+    except Exception:
+        return []
+
+
+def compute_debris_risk(
+    bbox: dict,
+    image_width: int,
+    image_height: int,
+    confidence: float,
+    class_name: str,
+) -> tuple[str, float]:
+    """
+    Compute a transparent prototype risk score from confidence, class, and size.
+    """
+    width = float(bbox.get("width", bbox.get("w", 0.0)))
+    height = float(bbox.get("height", bbox.get("h", 0.0)))
+    if width <= 0.0 and "x1" in bbox and "x2" in bbox:
+        width = max(0.0, float(bbox["x2"]) - float(bbox["x1"]))
+    if height <= 0.0 and "y1" in bbox and "y2" in bbox:
+        height = max(0.0, float(bbox["y2"]) - float(bbox["y1"]))
+
+    image_area = float(image_width * image_height)
+    relative_area = max(0.0, width * height / image_area) if image_area > 0 else 0.0
+    size_score = min(1.0, (relative_area ** 0.5) * 3.5)
+
+    class_key = str(class_name).lower().replace("-", "_").strip()
+    class_weight = CLASS_HAZARD_WEIGHTS.get(class_key)
+    if class_weight is None:
+        class_weight = next(
+            (weight for key, weight in CLASS_HAZARD_WEIGHTS.items() if key in class_key),
+            0.70,
+        )
+
+    conf = min(1.0, max(0.0, float(confidence)))
+    risk_score = round(float(np.clip((0.45 * conf) + (0.35 * class_weight) + (0.20 * size_score), 0.0, 1.0)), 2)
+    if risk_score >= 0.70:
+        return "high", risk_score
+    if risk_score >= 0.40:
+        return "medium", risk_score
+    return "low", risk_score
 
 
 def preprocess_sonar_image(
@@ -145,13 +237,15 @@ def preprocess_sonar_image(
     Args:
         input_image_path: Path to the input sonar image.
         output_dir: Target directory where processed image/label will be saved.
-        label_path: Optional explicit path to the YOLO .txt label file.
+        label_path: Optional explicit path to the YOLO .txt label file. If None,
+            the function checks for a .txt file matching the image stem in the
+            same input directory.
         copy_label: Whether to copy the corresponding YOLO label to output_dir.
         diameter: Neighborhood diameter for bilateral filtering.
         sigma_color: Color/intensity sigma for bilateral filtering.
         sigma_space: Coordinate space sigma for bilateral filtering.
-        suppress_side_artifacts: Whether to attenuate side acquisition lines.
-        margin_fraction: Fraction of width for outer margin transition band.
+        suppress_side_artifacts: Whether to attenuate lateral acquisition lines.
+        margin_fraction: Fraction of image width treated as each outer margin.
 
     Returns:
         Tuple of (output_image_path, output_label_path).
@@ -168,7 +262,7 @@ def preprocess_sonar_image(
     if image is None:
         raise ValueError(f"Failed to read image file: {src_img_path}")
 
-    # Apply preprocessing
+    # Apply conservative noise reduction
     processed_image = filter_sonar_noise(
         image=image,
         diameter=diameter,
@@ -178,14 +272,13 @@ def preprocess_sonar_image(
         margin_fraction=margin_fraction,
     )
 
-    # Save processed image under output directory with high quality
+    # Save processed image under output directory
     dst_img_path = dst_dir / src_img_path.name
     write_params = []
     if dst_img_path.suffix.lower() in {".jpg", ".jpeg"}:
         write_params = [int(cv2.IMWRITE_JPEG_QUALITY), 95]
     elif dst_img_path.suffix.lower() == ".png":
         write_params = [int(cv2.IMWRITE_PNG_COMPRESSION), 3]
-
     success = cv2.imwrite(str(dst_img_path), processed_image, write_params)
     if not success:
         raise IOError(f"Failed to write processed image to: {dst_img_path}")
@@ -231,8 +324,8 @@ def preprocess_sonar_batch(
         diameter: Neighborhood diameter for bilateral filtering.
         sigma_color: Color/intensity sigma for bilateral filtering.
         sigma_space: Coordinate space sigma for bilateral filtering.
-        suppress_side_artifacts: Whether to attenuate side acquisition lines.
-        margin_fraction: Fraction of width for outer margin transition band.
+        suppress_side_artifacts: Whether to attenuate lateral acquisition lines.
+        margin_fraction: Fraction of image width treated as each outer margin.
 
     Returns:
         List of (output_image_path, output_label_path) tuples.
@@ -251,190 +344,6 @@ def preprocess_sonar_batch(
         )
         results.append(res)
     return results
-
-
-# Domain-aware hazard severity weights for sonar marine debris targets
-CLASS_HAZARD_WEIGHTS: dict[str, float] = {
-    # Critical hazards (navigational danger, explosive, toxic, large entrapment)
-    "munition": 1.00,
-    "unexploded_ordnance": 1.00,
-    "hazard": 0.95,
-    "chemical_drum": 0.95,
-    "drum": 0.90,
-    "container": 0.90,
-    "wreck": 0.85,
-    "shipwreck": 0.85,
-    "pipe": 0.85,
-    "pipeline": 0.85,
-    "cable": 0.80,
-    "net": 0.80,
-    "fishing_gear": 0.80,
-    "ghost_net": 0.80,
-    # Moderate hazards (heavy/dense debris, seabed obstacles)
-    "metal": 0.75,
-    "tire": 0.70,
-    "tyre": 0.70,
-    "concrete": 0.70,
-    "debris_1": 0.75,
-    "debris_0": 0.65,
-    # Renamed class names (SIH taxonomy)
-    "marine_debris": 0.75,
-    "seabed_object": 0.70,
-    "plastic": 0.65,
-    "wood": 0.60,
-    "debris": 0.70,
-}
-
-
-def detect_acoustic_shadows(
-    image_bgr: np.ndarray,
-    highlight_thresh: int = 175,
-    shadow_thresh: int = 65,
-    min_area: int = 200,
-    max_zones: int = 10,
-) -> list[dict]:
-    """
-    Experimental heuristic: detect acoustic shadow zones in side-scan sonar imagery.
-
-    In SSS imagery, real objects produce a bright highlight return immediately
-    adjacent to a dark acoustic shadow. This function identifies candidate
-    shadow regions by finding dark areas adjacent to bright highlight returns.
-
-    This is a heuristic only — it will produce false positives on natural
-    seafloor features. Results should NOT be used as definitive detections.
-
-    Args:
-        image_bgr: Input sonar image in BGR format.
-        highlight_thresh: Pixel intensity >= this is considered a highlight (0-255).
-        shadow_thresh: Pixel intensity <= this is considered shadow (0-255).
-        min_area: Minimum bounding box area in pixels to include a shadow zone.
-        max_zones: Maximum number of shadow zones to return.
-
-    Returns:
-        List of dicts: {x, y, width, height, adjacent_to_highlight}
-    """
-    if image_bgr is None or image_bgr.size == 0:
-        return []
-
-    try:
-        gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY) if len(image_bgr.shape) == 3 else image_bgr.copy()
-
-        # Find bright highlight returns
-        _, highlight_mask = cv2.threshold(gray, highlight_thresh, 255, cv2.THRESH_BINARY)
-
-        # Dilate highlights to find adjacent regions
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 5))
-        dilated_highlights = cv2.dilate(highlight_mask, kernel, iterations=2)
-
-        # Find dark shadow regions
-        _, shadow_mask = cv2.threshold(gray, shadow_thresh, 255, cv2.THRESH_BINARY_INV)
-
-        # Shadow zones adjacent to highlights: intersection of shadow + dilated highlight
-        adjacent_shadows = cv2.bitwise_and(shadow_mask, dilated_highlights)
-
-        # Also include general shadow regions (not necessarily adjacent)
-        general_shadows = shadow_mask
-
-        # Find contours of adjacent shadow zones
-        contours, _ = cv2.findContours(adjacent_shadows, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        zones: list[dict] = []
-        for cnt in contours:
-            x, y, w, h = cv2.boundingRect(cnt)
-            area = w * h
-            if area < min_area:
-                continue
-            zones.append({
-                "x": int(x),
-                "y": int(y),
-                "width": int(w),
-                "height": int(h),
-                "adjacent_to_highlight": True,
-            })
-            if len(zones) >= max_zones:
-                break
-
-        # Sort by area descending
-        zones.sort(key=lambda z: z["width"] * z["height"], reverse=True)
-        return zones[:max_zones]
-
-    except Exception:
-        return []
-
-
-
-def compute_debris_risk(
-    bbox: dict,
-    image_width: int,
-    image_height: int,
-    confidence: float,
-    class_name: str,
-) -> tuple[str, float]:
-    """
-    Computes domain-aware risk assessment for detected sonar debris targets.
-
-    Combines detection confidence, relative acoustic footprint area,
-    and class hazard severity weighting into a calibrated risk score and level.
-
-    Args:
-        bbox: Dictionary with bounding box dimensions containing 'width' and 'height'
-              (or 'w', 'h', or 'x1','y1','x2','y2').
-        image_width: Total sonar image/swath width in pixels.
-        image_height: Total sonar image/swath height in pixels.
-        confidence: Model prediction confidence score [0.0, 1.0].
-        class_name: Predicted debris category/class label.
-
-    Returns:
-        tuple[str, float]: (risk_level, risk_score) where:
-            - risk_score: float between 0.00 and 1.00 (rounded to 2 decimal places)
-            - risk_level: 'high' (>= 0.70), 'medium' (>= 0.40), or 'low' (< 0.40)
-    """
-    # 1. Extract bounding box dimensions safely
-    width = float(bbox.get("width", bbox.get("w", 0.0)))
-    height = float(bbox.get("height", bbox.get("h", 0.0)))
-    if width <= 0.0 and "x2" in bbox and "x1" in bbox:
-        width = max(0.0, float(bbox["x2"]) - float(bbox["x1"]))
-    if height <= 0.0 and "y2" in bbox and "y1" in bbox:
-        height = max(0.0, float(bbox["y2"]) - float(bbox["y1"]))
-
-    # 2. Calculate relative footprint area
-    total_area = float(image_width * image_height)
-    if total_area > 0:
-        footprint_area = max(0.0, width * height)
-        rel_area = min(1.0, max(0.0, footprint_area / total_area))
-    else:
-        rel_area = 0.0
-
-    # 3. Resolve class hazard weighting
-    cls_key = str(class_name).lower().strip()
-    class_weight = CLASS_HAZARD_WEIGHTS.get(cls_key)
-    if class_weight is None:
-        # Match partial substring keys (e.g. 'submerged_pipe' -> 'pipe')
-        for key, weight in CLASS_HAZARD_WEIGHTS.items():
-            if key in cls_key:
-                class_weight = weight
-                break
-        else:
-            class_weight = 0.70  # Default fallback weight for unknown debris
-
-    # 4. Compute normalized size score
-    # Sonar debris occupying > 5-10% of swath represents substantial navigational hazard
-    size_score = min(1.0, max(0.0, (rel_area ** 0.5) * 3.5))
-
-    # 5. Composite risk calculation
-    conf = min(1.0, max(0.0, float(confidence)))
-    raw_risk = (0.45 * conf) + (0.35 * class_weight) + (0.20 * size_score)
-    risk_score = round(float(np.clip(raw_risk, 0.0, 1.0)), 2)
-
-    # 6. Categorize risk level
-    if risk_score >= 0.70:
-        risk_level = "high"
-    elif risk_score >= 0.40:
-        risk_level = "medium"
-    else:
-        risk_level = "low"
-
-    return risk_level, risk_score
 
 
 def _build_parser() -> argparse.ArgumentParser:

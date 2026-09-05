@@ -5,6 +5,7 @@ import History from './pages/History'
 import MapView from './pages/MapView'
 import Result from './pages/Result'
 import Upload from './pages/Upload'
+import Batch from './pages/Batch'
 import './App.css'
 
 export default function App() {
@@ -33,11 +34,12 @@ export default function App() {
           <span className="brand-mark">SA</span>
           <span>
             <span className="brand-name">SONAR AQUA</span>
-            <span className="brand-sub">Marine Debris Detection MVP</span>
+            <span className="brand-sub">Operator briefing for SSS debris</span>
           </span>
         </NavLink>
         <nav className="nav">
           <NavLink to="/" end>Upload</NavLink>
+          <NavLink to="/batch">Batch</NavLink>
           <NavLink to="/history">History</NavLink>
           {runId ? (
             <>
@@ -50,13 +52,14 @@ export default function App() {
           {modelOk === null
             ? 'API…'
             : modelOk
-            ? `YOLOv8n Ghost Pot Baseline (${modelName || 'best.pt'}) | ${isMock ? 'MOCK' : 'REAL GPU'}`
+            ? `${modelName || 'model'} | ${isMock ? 'MOCK' : 'REAL'}`
             : 'MODEL OFFLINE'}
         </span>
       </header>
       <main className="main">
         <Routes>
           <Route path="/" element={<Upload />} />
+          <Route path="/batch" element={<Batch />} />
           <Route path="/history" element={<History />} />
           <Route path="/runs/:id" element={<Result />} />
           <Route path="/runs/:id/map" element={<MapView />} />

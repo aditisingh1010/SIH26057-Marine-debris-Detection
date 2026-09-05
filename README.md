@@ -25,32 +25,28 @@ Coordinates are only shown when real survey metadata (lat, lon, heading, pixel_s
 - **Backend:** FastAPI + Uvicorn + OpenCV
 - **Frontend:** React + TypeScript + Vite + Leaflet
 
-## Running
+## Quick Start (Run in 2 Commands)
 
-### Backend
-
-```powershell
-# From repo root
-$env:PYTHONPATH = "backend;ml\src"
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+### 1. Start Backend
+```bash
+# Works on Windows, macOS, and Linux
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
+- API Docs & Interactive Swagger: `http://127.0.0.1:8000/docs`
+- Health Check: `http://127.0.0.1:8000/health`
 
-Check: `http://127.0.0.1:8000/health` or `http://127.0.0.1:8000/info`
-
-### Frontend
-
-```powershell
+### 2. Start Frontend
+```bash
 cd frontend
 npm install
 npm run dev
 ```
+- Web Dashboard: `http://localhost:5173`
 
-Open: `http://localhost:5173`
+---
 
-### Tests
-
-```powershell
-$env:PYTHONPATH = "backend;ml\src"
+## Running Tests
+```bash
 python -m pytest backend/tests/ -v
 ```
 

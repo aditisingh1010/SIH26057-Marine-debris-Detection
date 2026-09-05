@@ -52,9 +52,9 @@ def test_2_inference_endpoint(sample_sonar_image_bytes):
 def test_3_confidence_and_noise_filtering():
     """Test 3: Post-processing noise and confidence filtering."""
     raw = [
-        {"id": "det_001", "class": "crab_pot", "confidence": 0.85, "bbox": {"x": 100, "y": 100, "width": 50, "height": 50}},
-        {"id": "det_002", "class": "crab_pot", "confidence": 0.15, "bbox": {"x": 200, "y": 200, "width": 50, "height": 50}}, # Low conf
-        {"id": "det_003", "class": "crab_pot", "confidence": 0.90, "bbox": {"x": 0, "y": 0, "width": 640, "height": 640}}, # Full image artifact
+        {"id": "det_001", "class": "object", "confidence": 0.85, "bbox": {"x": 100, "y": 100, "width": 50, "height": 50}},
+        {"id": "det_002", "class": "object", "confidence": 0.15, "bbox": {"x": 200, "y": 200, "width": 50, "height": 50}}, # Low conf
+        {"id": "det_003", "class": "object", "confidence": 0.90, "bbox": {"x": 0, "y": 0, "width": 640, "height": 640}}, # Full image artifact
     ]
 
     res = filter_detections(
@@ -70,6 +70,51 @@ def test_3_confidence_and_noise_filtering():
     assert res["total_filtered"] == 1
     assert res["filtered_detections"][0]["id"] == "det_001"
     assert res["noise_reduced_count"] == 2
+
+def test_operating_modes_resolve_thresholds():
+    from app.services.modes import resolve_operating_mode
+
+    assert resolve_operating_mode("demo", 0.99) == ("demo", 0.25)
+    assert resolve_operating_mode("survey", 0.99) == ("survey", 0.10)
+    assert resolve_operating_mode("custom", 0.40) == ("custom", 0.40)
+    assert resolve_operating_mode(None, 0.25) == ("demo", 0.25)
+    assert resolve_operating_mode(None, 0.10) == ("survey", 0.10)
+    assert resolve_operating_mode(None, 0.40) == ("custom", 0.40)
+
+
+def test_detect_demo_and_survey_modes_persist(sample_sonar_image_bytes):
+    demo = client.post(
+        "/api/v1/detect",
+        files={"file": ("sonar_test.jpg", sample_sonar_image_bytes, "image/jpeg")},
+        params={"mode": "demo"},
+    )
+    assert demo.status_code == 200
+    demo_body = demo.json()
+    assert demo_body["detection_mode"] == "demo"
+    assert demo_body["conf_threshold"] == 0.25
+    assert "filter_stats" in demo_body
+    assert demo_body["filter_stats"]["total_raw"] >= demo_body["filter_stats"]["total_filtered"]
+
+    survey = client.post(
+        "/api/v1/detect",
+        files={"file": ("sonar_test.jpg", sample_sonar_image_bytes, "image/jpeg")},
+        params={"mode": "survey"},
+    )
+    assert survey.status_code == 200
+    survey_body = survey.json()
+    assert survey_body["detection_mode"] == "survey"
+    assert survey_body["conf_threshold"] == 0.10
+
+
+def test_detect_rejects_unknown_mode(sample_sonar_image_bytes):
+    response = client.post(
+        "/api/v1/detect",
+        files={"file": ("sonar_test.jpg", sample_sonar_image_bytes, "image/jpeg")},
+        params={"mode": "turbo"},
+    )
+    assert response.status_code == 400
+    assert "mode must be" in response.json()["detail"]
+
 
 def test_4_report_generation(sample_sonar_image_bytes):
     """Test 4: JSON and CSV report downloads."""

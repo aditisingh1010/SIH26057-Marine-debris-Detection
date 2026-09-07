@@ -71,15 +71,89 @@ def test_3_confidence_and_noise_filtering():
     assert res["filtered_detections"][0]["id"] == "det_001"
     assert res["noise_reduced_count"] == 2
 
-def test_operating_modes_resolve_thresholds():
-    from app.services.modes import resolve_operating_mode
 
+def test_default_filter_rejects_channel_sized_box():
+    """A box covering ~half the waterfall must not be kept as the wreck."""
+    raw = [
+        {
+            "id": "det_tight",
+            "class": "shipwreck",
+            "confidence": 0.70,
+            "bbox": {"x": 480, "y": 90, "width": 90, "height": 70},
+        },
+        {
+            "id": "det_giant",
+            "class": "shipwreck",
+            "confidence": 0.86,
+            "bbox": {"x": 400, "y": 8, "width": 390, "height": 320},
+        },
+    ]
+    res = filter_detections(raw, 800, 336, conf_threshold=0.25)
+    kept_ids = [d["id"] for d in res["filtered_detections"]]
+    assert "det_giant" not in kept_ids
+    assert "det_tight" in kept_ids
+
+
+def test_tile_merge_keeps_tight_wreck_not_union():
+    from tiled_inference import SSSSlicedInference
+
+    slicer = SSSSlicedInference()
+    merged = slicer.merge_class_detections(
+        [
+            {
+                "label": "shipwreck",
+                "confidence": 0.86,
+                "box": [400.0, 8.0, 790.0, 328.0],
+            },
+            {
+                "label": "shipwreck",
+                "confidence": 0.70,
+                "box": [500.0, 110.0, 610.0, 190.0],
+            },
+        ]
+    )
+    assert len(merged) == 1
+    box = merged[0]["box"]
+    assert box[2] - box[0] < 200
+    assert box[3] - box[1] < 120
+
+def test_operating_modes_resolve_thresholds():
+    from app.services.modes import (
+        DEMO_CONF_THRESHOLD,
+        RAW_INFERENCE_CONF,
+        SURVEY_CONF_THRESHOLD,
+        raw_yolo_conf,
+        resolve_operating_mode,
+    )
+
+    assert RAW_INFERENCE_CONF <= SURVEY_CONF_THRESHOLD
+    assert SURVEY_CONF_THRESHOLD < DEMO_CONF_THRESHOLD
+    assert raw_yolo_conf("demo", 0.25) == 0.20
+    assert raw_yolo_conf("survey", 0.10) == RAW_INFERENCE_CONF
+    assert raw_yolo_conf("custom", 0.40) == 0.30
     assert resolve_operating_mode("demo", 0.99) == ("demo", 0.25)
     assert resolve_operating_mode("survey", 0.99) == ("survey", 0.10)
     assert resolve_operating_mode("custom", 0.40) == ("custom", 0.40)
     assert resolve_operating_mode(None, 0.25) == ("demo", 0.25)
     assert resolve_operating_mode(None, 0.10) == ("survey", 0.10)
     assert resolve_operating_mode(None, 0.40) == ("custom", 0.40)
+
+
+def test_survey_filter_keeps_mid_confidence_demo_drops():
+    """Boxes between 10% and 25% must be keepable by Survey after YOLO proposes them."""
+    raw = [
+        {
+            "id": "det_mid",
+            "class": "crab_pot",
+            "confidence": 0.15,
+            "bbox": {"x": 40, "y": 40, "width": 30, "height": 30},
+        }
+    ]
+    demo = filter_detections(raw, 640, 640, conf_threshold=0.25)
+    survey = filter_detections(raw, 640, 640, conf_threshold=0.10)
+    assert demo["total_filtered"] == 0
+    assert survey["total_filtered"] == 1
+    assert survey["filtered_detections"][0]["id"] == "det_mid"
 
 
 def test_detect_demo_and_survey_modes_persist(sample_sonar_image_bytes):

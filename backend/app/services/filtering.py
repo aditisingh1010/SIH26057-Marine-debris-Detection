@@ -97,7 +97,7 @@ def filter_detections(
     image_height: int,
     conf_threshold: float = 0.25,
     min_area: float = 25.0,
-    max_area_ratio: float = 0.90,
+    max_area_ratio: float = 0.40,
     min_aspect_ratio: float = 0.05,
     max_aspect_ratio: float = 20.0,
     shadow_zones: Optional[List[Dict[str, Any]]] = None,

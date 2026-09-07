@@ -33,6 +33,9 @@ Thumbs.db
 .DS_Store
 desktop.ini
 
+# Brainstorm mockups
+.superpowers/
+
 # App runtime & frontend builds
 storage/
 frontend/node_modules/

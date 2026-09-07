@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { getRun } from '../api'
+import { getRun, getRuns } from '../api'
 import type { Detection, RunResult } from '../types'
 import {
   formatConfidence,
@@ -18,35 +18,47 @@ function locatedDetections(run: RunResult): Detection[] {
 }
 
 export default function MapView() {
-  const { id } = useParams()
+  const { id: paramId } = useParams()
+  const [search] = useSearchParams()
+  const requested = paramId || search.get('run')
   const mapEl = useRef<HTMLDivElement>(null)
   const mapInstance = useRef<L.Map | null>(null)
   const [run, setRun] = useState<RunResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [emptyReason, setEmptyReason] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!id) return
     let cancelled = false
     setRun(null)
     setError(null)
-    getRun(id)
-      .then((data) => {
-        if (!cancelled) {
-          setRun(data)
-          const valid = locatedDetections(data)
-          if (valid.length > 0) {
-            setSelectedId(valid[0].id)
-          }
+    setEmptyReason(null)
+
+    async function load() {
+      let id = requested
+      if (!id) {
+        const runs = await getRuns()
+        const geo = runs.find((r) => r.geolocation_available)
+        if (!geo) {
+          if (!cancelled) setEmptyReason('No run with coordinates yet. Attach a nav file on Detect.')
+          return
         }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err))
-      })
+        id = geo.id
+      }
+      const data = await getRun(id)
+      if (cancelled) return
+      setRun(data)
+      const valid = locatedDetections(data)
+      if (valid.length > 0) setSelectedId(valid[0].id)
+    }
+
+    load().catch((err: unknown) => {
+      if (!cancelled) setError(err instanceof Error ? err.message : String(err))
+    })
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [requested])
 
   const located = run ? locatedDetections(run) : []
   const surveyOnly =
@@ -143,13 +155,21 @@ export default function MapView() {
     }
   }, [run])
 
-  if (!id) return <p className="error">Missing run id</p>
   if (error) return <div className="panel error"><strong>Error:</strong> {error}</div>
+  if (emptyReason) {
+    return (
+      <section className="panel empty-map">
+        <h2>Map</h2>
+        <p className="muted">{emptyReason}</p>
+        <Link className="btn btn-primary" to="/">Detect</Link>
+      </section>
+    )
+  }
   if (!run) {
     return (
       <div className="panel loading-state">
         <div className="step-spinner" style={{ width: 28, height: 28 }} />
-        <p className="muted">Loading geospatial coordinates…</p>
+        <p className="muted">Loading map…</p>
       </div>
     )
   }
@@ -177,7 +197,7 @@ export default function MapView() {
             Re-run detection with a JSON/CSV/XTF nav file that includes latitude and longitude.
           </p>
           <div className="actions" style={{ justifyContent: 'center' }}>
-            <Link className="btn btn-primary" to={`/runs/${run.id}`}>
+            <Link className="btn btn-primary" to={`/?run=${run.id}`}>
               Back to Result
             </Link>
             <Link className="btn btn-secondary" to="/">
@@ -212,7 +232,7 @@ export default function MapView() {
         </div>
 
         <div className="header-actions">
-          <Link className="btn btn-secondary" to={`/runs/${run.id}`}>
+          <Link className="btn btn-secondary" to={`/?run=${run.id}`}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="19" y1="12" x2="5" y2="12" />
               <polyline points="12 19 5 12 12 5" />

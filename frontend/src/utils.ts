@@ -7,7 +7,7 @@ export function getRiskLevel(detection: Detection): RiskLevel {
     if (r === 'medium') return 'Medium'
     if (r === 'low') return 'Low'
   }
-  const cls = detection.class.toLowerCase()
+  const cls = (detection.class || '').toLowerCase()
   if (
     cls.includes('hazard') ||
     cls.includes('mine') ||

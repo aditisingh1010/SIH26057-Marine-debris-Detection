@@ -26,7 +26,6 @@ export default function History() {
     <div className="history-page">
       <div className="history-header">
         <div>
-          <p className="kicker">Scan History</p>
           <h1 style={{ margin: 0 }}>Past runs</h1>
         </div>
         <Link className="btn btn-primary" to="/">
@@ -42,7 +41,6 @@ export default function History() {
 
       {!loading && runs.length === 0 && (
         <div className="panel" style={{ textAlign: "center", padding: "4rem 2rem" }}>
-          <p style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🌊</p>
           <h3>No past runs</h3>
           <p className="muted">Upload a sonar image to get started.</p>
           <Link className="btn btn-primary" to="/" style={{ marginTop: "1rem", display: "inline-flex" }}>
@@ -101,7 +99,7 @@ export default function History() {
                       {run.geolocation_available ? (
                         <Link
                           className="btn btn-secondary"
-                          to={`/runs/${run.id}/map`}
+                          to={`/map?run=${run.id}`}
                           onClick={(e) => e.stopPropagation()}
                           style={{ marginLeft: 6 }}
                         >

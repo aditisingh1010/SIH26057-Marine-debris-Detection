@@ -28,7 +28,7 @@ from app.services.dataset_quality import build_model_quality, live_class_names, 
 from app.services.filtering import filter_detections
 from app.services.geolocation import box_size_meters, geolocate_box, geolocation_note, has_navigation_fix
 from app.services.metadata import parse_metadata_text
-from app.services.modes import resolve_operating_mode
+from app.services.modes import raw_yolo_conf, resolve_operating_mode
 from app.services.store import read_json, run_dir, write_csv, write_json
 
 router = APIRouter()
@@ -71,10 +71,10 @@ def _process_image(
 
     height, width = image.shape[:2]
 
-    # 1. Raw YOLO inference with SSS Tiling and Acoustic Shadow Verification
+    # Demo: original ~20% YOLO gate. Survey: 5% propose, then 10% filter.
     raw_preds = inference.predict(
         image,
-        conf=max(0.20, conf_threshold * 0.75),
+        conf=raw_yolo_conf(detection_mode, conf_threshold),
         use_tiling=True,
         verify_shadows=True,
     )

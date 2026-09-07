@@ -1,0 +1,7 @@
+{
+  "note": "EXAMPLE navigation only. These coordinates are not from a sonar ping header. Attach this file to exercise the map. Replace with real survey lat, lon, heading, and pixel_size_m before claiming geotags.",
+  "latitude": 15.4982,
+  "longitude": 73.8278,
+  "heading": 90.0,
+  "pixel_size_m": 0.05
+}

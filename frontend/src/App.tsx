@@ -1,19 +1,57 @@
-import { useEffect, useState } from 'react'
-import { NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import { Navigate, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { health } from './api'
-import History from './pages/History'
-import MapView from './pages/MapView'
-import Result from './pages/Result'
-import Upload from './pages/Upload'
-import Batch from './pages/Batch'
+import Detect from './pages/Detect'
+import ErrorBoundary from './ErrorBoundary.tsx'
 import './App.css'
 
+const History = lazy(() => import('./pages/History'))
+const MapView = lazy(() => import('./pages/MapView'))
+const Result = lazy(() => import('./pages/Result'))
+const DetectionList = lazy(() => import('./pages/DetectionList'))
+const Batch = lazy(() => import('./pages/Batch'))
+
+function RunToMap() {
+  const { id } = useParams()
+  return <Navigate to={`/map?run=${id}`} replace />
+}
+
+/** Kept so a stale HMR bundle that still references this name cannot crash the app. */
+function RunToDetect() {
+  return <Result />
+}
+
+type Theme = 'light' | 'dark'
+
+function readTheme(): Theme {
+  try {
+    const saved = localStorage.getItem('sonar-aqua-theme')
+    if (saved === 'dark' || saved === 'light') return saved
+  } catch {
+    /* ignore */
+  }
+  return 'light'
+}
+
+function applyTheme(theme: Theme) {
+  document.documentElement.setAttribute('data-theme', theme)
+  try {
+    localStorage.setItem('sonar-aqua-theme', theme)
+  } catch {
+    /* ignore */
+  }
+}
+
 export default function App() {
-  const location = useLocation()
-  const runId = location.pathname.match(/^\/runs\/([^/]+)/)?.[1]
+  const { pathname } = useLocation()
+  const [theme, setTheme] = useState<Theme>(() => readTheme())
   const [modelOk, setModelOk] = useState<boolean | null>(null)
   const [modelName, setModelName] = useState<string | null>(null)
   const [inferenceMode, setInferenceMode] = useState<string>('real')
+
+  useEffect(() => {
+    applyTheme(theme)
+  }, [theme])
 
   useEffect(() => {
     health()
@@ -33,37 +71,48 @@ export default function App() {
         <NavLink to="/" className="brand" end>
           <span className="brand-mark">SA</span>
           <span>
-            <span className="brand-name">SONAR AQUA</span>
-            <span className="brand-sub">Operator briefing for SSS debris</span>
+            <span className="brand-name">Sonar Aqua</span>
+            <span className="brand-sub">Marine debris detection</span>
           </span>
         </NavLink>
         <nav className="nav">
-          <NavLink to="/" end>Upload</NavLink>
-          <NavLink to="/batch">Batch</NavLink>
-          <NavLink to="/history">History</NavLink>
-          {runId ? (
-            <>
-              <NavLink to={`/runs/${runId}`} end>Result</NavLink>
-              <NavLink to={`/runs/${runId}/map`}>Map</NavLink>
-            </>
-          ) : null}
+          <NavLink to="/" end>Detect</NavLink>
+          <NavLink to="/runs" className={pathname === '/runs' ? 'active' : ''}>Runs</NavLink>
+          <NavLink to="/map">Map</NavLink>
         </nav>
-        <span className={`health ${modelOk ? (isMock ? 'mock' : 'ok') : modelOk === false ? 'bad' : ''}`}>
-          {modelOk === null
-            ? 'API…'
-            : modelOk
-            ? `${modelName || 'model'} | ${isMock ? 'MOCK' : 'REAL'}`
-            : 'MODEL OFFLINE'}
-        </span>
+        <div className="topbar-end">
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={() => setTheme((t) => (t === 'light' ? 'dark' : 'light'))}
+            aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+          >
+            {theme === 'light' ? 'Dark' : 'Light'}
+          </button>
+          <span className={`health ${modelOk ? (isMock ? 'mock' : 'ok') : modelOk === false ? 'bad' : ''}`}>
+            {modelOk === null
+              ? 'API…'
+              : modelOk
+              ? `${modelName || 'model'} · ${isMock ? 'mock' : 'real'}`
+              : 'offline'}
+          </span>
+        </div>
       </header>
       <main className="main">
-        <Routes>
-          <Route path="/" element={<Upload />} />
-          <Route path="/batch" element={<Batch />} />
-          <Route path="/history" element={<History />} />
-          <Route path="/runs/:id" element={<Result />} />
-          <Route path="/runs/:id/map" element={<MapView />} />
-        </Routes>
+        <ErrorBoundary>
+          <Suspense fallback={<p className="muted">Loading…</p>}>
+            <Routes>
+              <Route path="/" element={<Detect />} />
+              <Route path="/runs" element={<History />} />
+              <Route path="/map" element={<MapView />} />
+              <Route path="/batch" element={<Batch />} />
+              <Route path="/history" element={<Navigate to="/runs" replace />} />
+              <Route path="/runs/:id/map" element={<RunToMap />} />
+              <Route path="/runs/:id/list" element={<DetectionList />} />
+              <Route path="/runs/:id" element={<RunToDetect />} />
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
       </main>
     </div>
   )

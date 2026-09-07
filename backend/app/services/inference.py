@@ -9,6 +9,7 @@ import numpy as np
 
 from app.core.config import settings
 from app.services.class_names import names_from_model, normalize_class_name
+from app.services.modes import shadow_min_display_conf
 
 logger = logging.getLogger(__name__)
 
@@ -151,8 +152,9 @@ class InferenceService:
                 processed_img = image_bgr
 
         # 2. Tiled vs Standard Inference
-        # Automatically enable tiling if image dimensions exceed standard tile size (e.g., width or height >= 800)
-        is_large_swath = max(width, height) >= 800
+        # Tile only true long waterfalls. 800×336 strips used to fire tiling and
+        # union wreck tiles into a box covering the whole starboard channel.
+        is_large_swath = max(width, height) >= 1280
 
         try:
             if use_tiling and is_large_swath and SSSSlicedInference is not None:
@@ -182,7 +184,10 @@ class InferenceService:
             try:
                 verifier = AcousticShadowVerifier()
                 raw_dets = verifier.filter_detections(
-                    processed_img, raw_dets, nadir_x=nadir_x, min_display_confidence=max(0.20, conf * 0.8)
+                    processed_img,
+                    raw_dets,
+                    nadir_x=nadir_x,
+                    min_display_confidence=shadow_min_display_conf(conf),
                 )
             except Exception as exc:
                 logger.warning("Shadow verification step encountered error: %s", exc)

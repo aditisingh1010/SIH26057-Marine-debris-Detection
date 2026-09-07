@@ -81,7 +81,12 @@ class SSSSlicedInference:
             return 0.0
         return interArea / minArea
 
+    @staticmethod
+    def _box_area(box: List[float]) -> float:
+        return max(0.0, float(box[2]) - float(box[0])) * max(0.0, float(box[3]) - float(box[1]))
+
     def merge_class_detections(self, detections: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """NMS per class. Never union boxes — unioning tiles turns a wreck into a whole-swath rectangle."""
         if not detections:
             return []
 
@@ -93,46 +98,44 @@ class SSSSlicedInference:
 
         for label, items in by_class.items():
             items = sorted(items, key=lambda x: x["confidence"], reverse=True)
-            used = [False] * len(items)
+            kept: List[Dict[str, Any]] = []
 
-            for i in range(len(items)):
-                if used[i]:
-                    continue
-
-                cluster = [items[i]]
-                used[i] = True
-
-                for j in range(i + 1, len(items)):
-                    if used[j]:
+            for item in items:
+                replaced = False
+                drop_item = False
+                for idx, existing in enumerate(kept):
+                    iou = self.calculate_iou(item["box"], existing["box"])
+                    iomin = self.calculate_intersection_over_min(item["box"], existing["box"])
+                    if iou <= self.iou_threshold and iomin < 0.45:
                         continue
 
-                    boxA = items[i]["box"]
-                    boxB = items[j]["box"]
-                    iou = self.calculate_iou(boxA, boxB)
-                    iomin = self.calculate_intersection_over_min(boxA, boxB)
-                    is_proximate = False
-                    if label in ["shipwreck", "pipeline"]:
-                        dx = max(0, max(boxA[0], boxB[0]) - min(boxA[2], boxB[2]))
-                        dy = max(0, max(boxA[1], boxB[1]) - min(boxA[3], boxB[3]))
-                        if dx < self.proximity_merge_px and dy < self.proximity_merge_px:
-                            is_proximate = True
+                    area_item = self._box_area(item["box"])
+                    area_ex = self._box_area(existing["box"])
+                    if area_item <= 0 or area_ex <= 0:
+                        drop_item = True
+                        break
 
-                    # Merge if overlapping, nested (high IoMin), or proximate
-                    if iou > self.iou_threshold or iomin >= 0.45 or is_proximate:
-                        cluster.append(items[j])
-                        used[j] = True
+                    smaller = item if area_item <= area_ex else existing
+                    larger = existing if smaller is item else item
+                    nested = self.calculate_intersection_over_min(smaller["box"], larger["box"]) >= 0.45
+                    # Prefer the tight box on the object over a tile-sized parent.
+                    if nested and smaller["confidence"] >= 0.45 * float(larger["confidence"]):
+                        kept[idx] = smaller
+                        replaced = True
+                    drop_item = True
+                    break
 
-                x1 = min(c["box"][0] for c in cluster)
-                y1 = min(c["box"][1] for c in cluster)
-                x2 = max(c["box"][2] for c in cluster)
-                y2 = max(c["box"][3] for c in cluster)
-                max_conf = max(c["confidence"] for c in cluster)
+                if replaced or drop_item:
+                    continue
+                kept.append(item)
 
+            for det in kept:
+                box = det["box"]
                 merged_by_class.append({
                     "label": label,
-                    "confidence": round(float(max_conf), 3),
-                    "box": [round(float(x1), 1), round(float(y1), 1), round(float(x2), 1), round(float(y2), 1)],
-                    "merged_count": len(cluster)
+                    "confidence": round(float(det["confidence"]), 3),
+                    "box": [round(float(box[0]), 1), round(float(box[1]), 1), round(float(box[2]), 1), round(float(box[3]), 1)],
+                    "merged_count": int(det.get("merged_count", 1)),
                 })
 
         # -------------------------------------------------------------

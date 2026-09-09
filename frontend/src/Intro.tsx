@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+﻿import { useEffect, useState, type ReactNode } from 'react'
 
 export default function Intro({ children }: { children: ReactNode }) {
   const [show, setShow] = useState(() => {
@@ -27,7 +27,7 @@ export default function Intro({ children }: { children: ReactNode }) {
       {show ? (
         <div className="intro" aria-hidden="true">
           <div className="intro-wipe" />
-          <p className="intro-mark">Sonar Aqua</p>
+          <p className="intro-mark">AquaX</p>
         </div>
       ) : null}
       {children}

@@ -1,4 +1,4 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react'
+﻿import { Component, type ErrorInfo, type ReactNode } from 'react'
 
 type Props = { children: ReactNode }
 type State = { error: Error | null }
@@ -18,7 +18,7 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (this.state.error) {
       return (
         <div style={{ padding: '2rem', fontFamily: 'Georgia, serif', color: '#1c1917' }}>
-          <h1 style={{ fontSize: '1.4rem' }}>Sonar Aqua hit an error</h1>
+          <h1 style={{ fontSize: '1.4rem' }}>AquaX hit an error</h1>
           <pre style={{ whiteSpace: 'pre-wrap' }}>{this.state.error.message}</pre>
           <p>
             <button

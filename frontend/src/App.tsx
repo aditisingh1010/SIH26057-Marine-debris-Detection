@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+﻿import { lazy, Suspense, useEffect, useState } from 'react'
 import { Navigate, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { health } from './api'
 import Detect from './pages/Detect'
@@ -25,7 +25,7 @@ type Theme = 'light' | 'dark'
 
 function readTheme(): Theme {
   try {
-    const saved = localStorage.getItem('sonar-aqua-theme')
+    const saved = localStorage.getItem('aquax-theme') ?? localStorage.getItem('sonar-aqua-theme')
     if (saved === 'dark' || saved === 'light') return saved
   } catch {
     /* ignore */
@@ -36,7 +36,7 @@ function readTheme(): Theme {
 function applyTheme(theme: Theme) {
   document.documentElement.setAttribute('data-theme', theme)
   try {
-    localStorage.setItem('sonar-aqua-theme', theme)
+    localStorage.setItem('aquax-theme', theme)
   } catch {
     /* ignore */
   }
@@ -69,9 +69,9 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <NavLink to="/" className="brand" end>
-          <span className="brand-mark">SA</span>
+          <span className="brand-mark">AX</span>
           <span>
-            <span className="brand-name">Sonar Aqua</span>
+            <span className="brand-name">AquaX</span>
             <span className="brand-sub">Marine debris detection</span>
           </span>
         </NavLink>
@@ -91,16 +91,16 @@ export default function App() {
           </button>
           <span className={`health ${modelOk ? (isMock ? 'mock' : 'ok') : modelOk === false ? 'bad' : ''}`}>
             {modelOk === null
-              ? 'API…'
+              ? 'APIâ€¦'
               : modelOk
-              ? `${modelName || 'model'} · ${isMock ? 'mock' : 'real'}`
+              ? `${modelName || 'model'} Â· ${isMock ? 'mock' : 'real'}`
               : 'offline'}
           </span>
         </div>
       </header>
       <main className="main">
         <ErrorBoundary>
-          <Suspense fallback={<p className="muted">Loading…</p>}>
+          <Suspense fallback={<p className="muted">Loadingâ€¦</p>}>
             <Routes>
               <Route path="/" element={<Detect />} />
               <Route path="/runs" element={<History />} />

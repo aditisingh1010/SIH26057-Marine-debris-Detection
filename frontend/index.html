@@ -1,14 +1,14 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sonar Aqua</title>
+    <title>AquaX</title>
     <script>
       (function () {
         try {
-          var t = localStorage.getItem('sonar-aqua-theme')
+          var t = localStorage.getItem('aquax-theme') || localStorage.getItem('sonar-aqua-theme')
           if (t !== 'dark' && t !== 'light') t = 'light'
           document.documentElement.setAttribute('data-theme', t)
         } catch (e) {
@@ -24,7 +24,7 @@
     />
   </head>
   <body>
-    <div id="root">Loading Sonar Aqua…</div>
+    <div id="root">Loading AquaXâ€¦</div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

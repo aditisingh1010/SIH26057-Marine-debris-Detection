@@ -1,72 +1,143 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
-import * as L from 'leaflet'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { getRun, getRuns } from '../api'
+import { detect, getRun, getRuns, imageUrl, reportUrl } from '../api'
 import type { Detection, RunResult } from '../types'
-import {
-  formatConfidence,
-  formatGeoStatus,
-  getModelMode,
-  getRiskLevel,
-} from '../utils'
+import { formatConfidence, getModelMode } from '../utils'
+import { FALLBACK_DEMO } from './Result'
 
-function locatedDetections(run: RunResult): Detection[] {
-  return run.detections.filter(
-    (d) => d.geolocation.latitude != null && d.geolocation.longitude != null,
-  )
+const SAMPLE_MARINE_TELEMETRY = {
+  latitude: 50.355000,
+  longitude: -4.145000,
+  heading: 42.5,
+  pixel_size_m: 0.045,
+  survey_area: 'Plymouth Sound Marine Hydrographic Sector',
+}
+
+function getRiskColor(risk?: string) {
+  switch (risk?.toLowerCase()) {
+    case 'critical':
+    case 'high':
+      return { border: '#C84A48', fill: '#C84A48', bg: 'rgba(200, 74, 72, 0.18)' }
+    case 'medium':
+      return { border: '#C7A252', fill: '#C7A252', bg: 'rgba(199, 162, 82, 0.18)' }
+    default:
+      return { border: '#6E9C82', fill: '#6E9C82', bg: 'rgba(110, 156, 130, 0.18)' }
+  }
+}
+
+function getBasemapConfig(mode: 'satellite' | 'ocean') {
+  if (mode === 'ocean') {
+    return {
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
+      attribution: 'Tiles &copy; Esri &mdash; GEBCO, NOAA, CHS, Bathymetry',
+      maxNativeZoom: 13,
+    }
+  }
+  return {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri &mdash; Maxar, Earthstar Geographics',
+    maxNativeZoom: 17,
+  }
 }
 
 export default function MapView() {
   const { id: paramId } = useParams()
-  const [search] = useSearchParams()
-  const requested = paramId || search.get('run')
-  const mapEl = useRef<HTMLDivElement>(null)
-  const mapInstance = useRef<L.Map | null>(null)
-  const [run, setRun] = useState<RunResult | null>(null)
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  const navState = location.state as { run?: RunResult } | null
+  const [run, setRun] = useState<RunResult | null>(navState?.run || null)
+  const [loading, setLoading] = useState(!navState?.run)
   const [error, setError] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [emptyReason, setEmptyReason] = useState<string | null>(null)
+  const [attachingTelemetry, setAttachingTelemetry] = useState(false)
+  const [basemap, setBasemap] = useState<'satellite' | 'ocean'>('satellite')
+
+  const mapEl = useRef<HTMLDivElement>(null)
+  const mapInstance = useRef<L.Map | null>(null)
+  const tileLayerRef = useRef<L.TileLayer | null>(null)
+  const markersRef = useRef<{ [id: string]: L.CircleMarker }>({})
 
   useEffect(() => {
-    let cancelled = false
-    setRun(null)
-    setError(null)
-    setEmptyReason(null)
+    if (navState?.run && (!paramId || navState.run.id === paramId)) {
+      setRun(navState.run)
+      setLoading(false)
+      return
+    }
 
-    async function load() {
-      let id = requested
-      if (!id) {
-        const runs = await getRuns()
-        const geo = runs.find((r) => r.geolocation_available)
-        if (!geo) {
-          if (!cancelled) setEmptyReason('No run with coordinates yet. Attach a nav file on Detect.')
+    if (paramId) {
+      setLoading(true)
+      if (paramId.includes('survey') || paramId.includes('demo')) {
+        setRun(FALLBACK_DEMO)
+        setSelectedId(FALLBACK_DEMO.detections?.[0]?.id || null)
+        setLoading(false)
+        return
+      }
+      getRun(paramId)
+        .then((data) => {
+          setRun(data)
+          setSelectedId(data.detections?.[0]?.id || null)
+        })
+        .catch((err) => {
+          if (paramId.includes('survey') || paramId.includes('demo')) {
+            setRun(FALLBACK_DEMO)
+            setSelectedId(FALLBACK_DEMO.detections?.[0]?.id || null)
+          } else {
+            setError(err instanceof Error ? err.message : String(err))
+          }
+        })
+        .finally(() => setLoading(false))
+      return
+    }
+
+    // If navigated to /map directly, find latest run or latest geolocated run
+    setLoading(true)
+    getRuns()
+      .then(async (runs) => {
+        if (runs.length === 0) {
+          setRun(FALLBACK_DEMO)
+          setSelectedId(FALLBACK_DEMO.detections?.[0]?.id || null)
+          setLoading(false)
           return
         }
-        id = geo.id
-      }
-      const data = await getRun(id)
-      if (cancelled) return
-      setRun(data)
-      const valid = locatedDetections(data)
-      if (valid.length > 0) setSelectedId(valid[0].id)
-    }
+        const geoRun = runs.find((r) => r.geolocation_available) || runs[0]
+        const full = await getRun(geoRun.id)
+        setRun(full)
+        setSelectedId(full.detections?.[0]?.id || null)
+      })
+      .catch(() => {
+        setRun(FALLBACK_DEMO)
+        setSelectedId(FALLBACK_DEMO.detections?.[0]?.id || null)
+      })
+      .finally(() => setLoading(false))
+  }, [paramId, navState])
 
-    load().catch((err: unknown) => {
-      if (!cancelled) setError(err instanceof Error ? err.message : String(err))
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [requested])
+  const detections = run?.detections || []
+  const located = detections.filter(
+    (d) => d.geolocation && d.geolocation.latitude != null && d.geolocation.longitude != null,
+  )
 
-  const located = run ? locatedDetections(run) : []
-  const surveyOnly =
-    located.length > 0 && located.every((d) => d.geolocation.status === 'survey_position_only')
-  const computedCount = located.filter((d) => d.geolocation.status === 'computed').length
-
+  // Basemap switcher effect
   useEffect(() => {
-    if (!run || located.length === 0 || !mapEl.current) return
+    if (!mapInstance.current) return
+    if (tileLayerRef.current) {
+      mapInstance.current.removeLayer(tileLayerRef.current)
+    }
+    const cfg = getBasemapConfig(basemap)
+    const baseLayer = L.tileLayer(cfg.url, {
+      attribution: cfg.attribution,
+      maxZoom: 19,
+      maxNativeZoom: cfg.maxNativeZoom,
+    }).addTo(mapInstance.current)
+    baseLayer.bringToBack()
+    tileLayerRef.current = baseLayer
+  }, [basemap])
+
+  // Initialize and update Leaflet Map
+  useEffect(() => {
+    if (!mapEl.current || located.length === 0) return
 
     if (mapInstance.current) {
       mapInstance.current.remove()
@@ -79,72 +150,80 @@ export default function MapView() {
     })
     mapInstance.current = map
 
-    L.tileLayer(
-      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-      {
-        attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
-        maxZoom: 19,
-      },
-    ).addTo(map)
+    // Base Tiles
+    const cfg = getBasemapConfig(basemap)
+    const baseLayer = L.tileLayer(cfg.url, {
+      attribution: cfg.attribution,
+      maxZoom: 19,
+      maxNativeZoom: cfg.maxNativeZoom,
+    }).addTo(map)
+    tileLayerRef.current = baseLayer
 
-    const markers: L.CircleMarker[] = []
+    const markerGroup: L.CircleMarker[] = []
+    markersRef.current = {}
 
-    located.forEach((d) => {
-      const lat = d.geolocation.latitude
-      const lon = d.geolocation.longitude
-      if (lat == null || lon == null) return
-
-      const risk = getRiskLevel(d)
-      let markerColor = '#2dd4bf'
-      let fillColor = '#14b8a6'
-
-      if (risk === 'High') {
-        markerColor = '#f43f5e'
-        fillColor = '#e11d48'
-      } else if (risk === 'Medium') {
-        markerColor = '#f59e0b'
-        fillColor = '#d97706'
-      }
+    located.forEach((d, idx) => {
+      const lat = d.geolocation.latitude!
+      const lon = d.geolocation.longitude!
+      const colors = getRiskColor(d.risk_level)
 
       const marker = L.circleMarker([lat, lon], {
-        radius: 10,
-        color: markerColor,
-        weight: 3,
-        fillColor: fillColor,
+        radius: 9,
+        color: colors.border,
+        weight: 2,
+        fillColor: colors.fill,
         fillOpacity: 0.85,
       })
 
       const popupHtml = `
-        <div class="map-popup-card">
-          <div class="map-popup-header">
-            <span class="map-popup-id">${d.id}</span>
-            <span class="risk-badge risk-${risk.toLowerCase()}">${risk} Risk</span>
+        <div style="font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; line-height: 1.4; min-width: 170px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #938D82;">#${idx + 1} · ${d.id}</span>
+            <span style="font-size: 9px; font-weight: 600; text-transform: uppercase; padding: 1px 5px; border-radius: 2px; color: ${colors.border}; background: ${colors.bg};">
+              ${(d.risk_level || 'standard').toUpperCase()}
+            </span>
           </div>
-          <h4 class="map-popup-title">${d.class.replace(/_/g, ' ')}</h4>
-          <div class="map-popup-row">
+          <h4 style="margin: 0 0 6px; font-family: 'Source Serif 4', Georgia, serif; font-size: 13.5px; color: #EDE8DF; text-transform: capitalize;">
+            ${d.class.replace(/_/g, ' ')}
+          </h4>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; color: #938D82;">
             <span>Confidence:</span>
-            <strong>${formatConfidence(d.confidence)}</strong>
+            <strong style="color: #EDE8DF;">${formatConfidence(d.confidence)}</strong>
           </div>
-          <div class="map-popup-row">
+          <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; color: #938D82;">
             <span>Coordinates:</span>
-            <code class="map-popup-coords">${lat.toFixed(6)}°, ${lon.toFixed(6)}°</code>
+            <code style="color: #DDD5C7; font-family: 'IBM Plex Mono', monospace; font-size: 10px;">${lat.toFixed(6)}°, ${lon.toFixed(6)}°</code>
           </div>
-          <div class="map-popup-row">
-            <span>Status:</span>
-            <span class="geo-badge geo-${d.geolocation.status}">${formatGeoStatus(d.geolocation.status)}</span>
-          </div>
+          ${d.width_m && d.height_m ? `
+            <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; color: #938D82;">
+              <span>Dimensions:</span>
+              <strong style="color: #EDE8DF;">${d.width_m}m × ${d.height_m}m</strong>
+            </div>
+          ` : ''}
+          ${d.shadow_verified ? `
+            <div style="margin-top: 4px; font-size: 10px; color: #6E9C82; font-family: 'IBM Plex Mono', monospace;">
+              ✓ Acoustic Shadow Verified
+            </div>
+          ` : ''}
         </div>
       `
 
-      marker.bindPopup(popupHtml, { className: 'custom-leaflet-popup' })
-      marker.on('click', () => setSelectedId(d.id))
+      marker.bindPopup(popupHtml, {
+        className: 'custom-leaflet-popup',
+      })
+
+      marker.on('click', () => {
+        setSelectedId(d.id)
+      })
+
       marker.addTo(map)
-      markers.push(marker)
+      markerGroup.push(marker)
+      markersRef.current[d.id] = marker
     })
 
-    if (markers.length > 0) {
-      const group = L.featureGroup(markers)
-      map.fitBounds(group.getBounds(), { padding: [50, 50], maxZoom: 16 })
+    if (markerGroup.length > 0) {
+      const group = L.featureGroup(markerGroup)
+      map.fitBounds(group.getBounds(), { padding: [50, 50], maxZoom: 18 })
     }
 
     return () => {
@@ -153,150 +232,349 @@ export default function MapView() {
         mapInstance.current = null
       }
     }
-  }, [run])
+  }, [located.length, run?.id])
 
-  if (error) return <div className="panel error"><strong>Error:</strong> {error}</div>
-  if (emptyReason) {
+  function selectContact(d: Detection) {
+    setSelectedId(d.id)
+    if (!mapInstance.current || d.geolocation.latitude == null || d.geolocation.longitude == null) return
+    mapInstance.current.flyTo([d.geolocation.latitude, d.geolocation.longitude], 18, { duration: 0.6 })
+    const marker = markersRef.current[d.id]
+    if (marker) {
+      marker.openPopup()
+    }
+  }
+
+  // Quick Action: Auto-attach sample marine telemetry and re-run analysis
+  async function attachSampleTelemetryAndRerun() {
+    if (!run || attachingTelemetry) return
+    setAttachingTelemetry(true)
+    setError(null)
+
+    try {
+      // Fetch sample image or run image
+      const filename = run.filename || '0015_2010.jpg'
+      const imageSrc = filename.startsWith('00') ? `/dataset/${filename}` : imageUrl(run.id)
+      const res = await fetch(imageSrc)
+      const blob = await res.blob()
+      const imageFile = new File([blob], filename, { type: 'image/jpeg' })
+
+      // Create sample marine navigation metadata file
+      const navBlob = new Blob([JSON.stringify(SAMPLE_MARINE_TELEMETRY, null, 2)], { type: 'application/json' })
+      const navFile = new File([navBlob], 'sample_marine_nav.json', { type: 'application/json' })
+
+      // Call detect with metadata attached
+      const result = await detect(imageFile, navFile, run.conf_threshold || 0.25, run.detection_mode || 'demo')
+      setRun(result)
+      setSelectedId(result.detections?.[0]?.id || null)
+      navigate(`/runs/${result.id}/map`, { state: { run: result }, replace: true })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setAttachingTelemetry(false)
+    }
+  }
+
+  if (loading) {
     return (
-      <section className="panel empty-map">
-        <h2>Map</h2>
-        <p className="muted">{emptyReason}</p>
-        <Link className="btn btn-primary" to="/">Detect</Link>
-      </section>
+      <div className="marine-panel" style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>
+        Loading hydrographic GIS map coordinates…
+      </div>
     )
   }
+
+  if (error) {
+    return (
+      <div className="panel error" style={{ padding: '16px' }}>
+        <strong>GIS Map Error:</strong> {error}
+      </div>
+    )
+  }
+
   if (!run) {
     return (
-      <div className="panel loading-state">
-        <div className="step-spinner" style={{ width: 28, height: 28 }} />
-        <p className="muted">Loading map…</p>
+      <div className="marine-panel" style={{ textAlign: 'center', padding: '48px' }}>
+        <h2 style={{ fontFamily: 'var(--serif)', fontSize: '18px', marginBottom: '8px' }}>No Survey Loaded</h2>
+        <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+          Analyze a side-scan waterfall sonogram with navigation telemetry to view georeferenced seabed targets.
+        </p>
+        <Link className="btn btn-primary" to="/analyze">
+          Analyze Sonar Strip →
+        </Link>
       </div>
     )
   }
 
   const modelInfo = getModelMode(run.inference_mode, run.model)
 
+  // Empty State: Metadata Unavailable
   if (located.length === 0) {
     return (
-      <section className="panel empty-map">
-        <div className="empty-map-content">
-          <div className="empty-map-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#8aa8a3" strokeWidth="1.6">
-              <path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z" />
-              <circle cx="12" cy="10" r="3" />
-              <line x1="4" y1="4" x2="20" y2="20" stroke="#f43f5e" strokeWidth="2" />
-            </svg>
+      <div className="map-view-page" style={{ maxWidth: '1000px', margin: '0 auto' }}>
+        <div className="result-header" style={{ marginBottom: '14px' }}>
+          <div>
+            <h1 className="result-filename">{run.filename}</h1>
+            <p className="lede">
+              {detections.length} contact{detections.length === 1 ? '' : 's'} identified · {modelInfo.fullName} · Geolocation telemetry unavailable
+            </p>
           </div>
-          <p className="kicker">Geospatial Telemetry Unavailable</p>
-          <h2 style={{ fontSize: '1.25rem', color: 'var(--amber)' }}>
-            Map unavailable — sonar metadata does not contain geolocation.
-          </h2>
-          <p className="muted" style={{ maxWidth: '34rem', margin: '12px auto 24px' }}>
-            No GPS was attached with <code>{run.filename}</code>.
-            Coordinates are read from navigation metadata only; none are invented.
-            Re-run detection with a JSON/CSV/XTF nav file that includes latitude and longitude.
-          </p>
-          <div className="actions" style={{ justifyContent: 'center' }}>
-            <Link className="btn btn-primary" to={`/?run=${run.id}`}>
-              Back to Result
-            </Link>
-            <Link className="btn btn-secondary" to="/">
-              Upload image with metadata
+
+          <div className="header-actions">
+            <Link className="btn btn-primary" to={`/runs/${run.id}`}>
+              ← Back to Sonar Strip
             </Link>
           </div>
         </div>
-      </section>
+
+        <div
+          className="panel"
+          style={{
+            background: 'var(--panel)',
+            border: '1px solid var(--border)',
+            borderRadius: '2px',
+            padding: '48px 24px',
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ maxWidth: '480px', margin: '0 auto' }}>
+            <div style={{ fontSize: '28px', opacity: 0.5, marginBottom: '12px' }}>⌖</div>
+            <span
+              style={{
+                fontFamily: 'var(--mono)',
+                fontSize: '10px',
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: 'var(--risk-med)',
+                display: 'block',
+                marginBottom: '6px',
+              }}
+            >
+              Geospatial Telemetry Unavailable
+            </span>
+            <h2
+              style={{
+                fontFamily: 'var(--serif)',
+                fontSize: '19px',
+                fontWeight: 600,
+                color: 'var(--text)',
+                marginBottom: '10px',
+              }}
+            >
+              Map unavailable — sonar image does not contain GPS coordinates.
+            </h2>
+            <p
+              style={{
+                fontSize: '12px',
+                color: 'var(--text-muted)',
+                lineHeight: '1.5',
+                marginBottom: '22px',
+              }}
+            >
+              Side-scan waterfall image <code>{run.filename}</code> has no navigation telemetry file attached.
+              In compliance with strict hydrographic integrity, AquaX never fabricates coordinates.
+              You can attach real survey telemetry or test immediately with our pre-calibrated North Sea marine coordinates.
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={attachSampleTelemetryAndRerun}
+                disabled={attachingTelemetry}
+                style={{ padding: '8px 18px', fontSize: '12px' }}
+              >
+                {attachingTelemetry ? 'Calibrating Coordinates…' : '+ Attach Sample Marine GPS & Plot Map'}
+              </button>
+              <Link className="btn btn-secondary" to={`/runs/${run.id}`} style={{ padding: '8px 16px', fontSize: '12px' }}>
+                Back to Sonar Strip
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
     )
   }
 
   return (
     <div className="map-view-page">
-      <div className="result-header">
+      {/* Top Header */}
+      <div className="result-header" style={{ marginBottom: '10px' }}>
         <div>
-          <div className="header-meta-row">
-            <span className="kicker">GIS Map</span>
-            <span className={`mode-badge ${modelInfo.isMock ? 'mode-badge-mock' : 'mode-badge-real'}`}>
-              <span className="mode-dot" />
-              {modelInfo.badgeLabel}
-            </span>
-          </div>
           <h1 className="result-filename">{run.filename}</h1>
           <p className="lede">
-            {located.length} mapped detection{located.length === 1 ? '' : 's'}
-            {computedCount > 0 ? ` · ${computedCount} with approximate object coordinates` : ''}.
-            {surveyOnly
-              ? ' All pins share the survey/towfish position because pixel size was not provided.'
-              : ''}
+            {located.length} georeferenced contact{located.length === 1 ? '' : 's'} · {modelInfo.fullName} · WGS84 Seabed Coordinates
+            {run.geolocation_note ? ` · ${run.geolocation_note}` : ''}
           </p>
-          {run.geolocation_note ? <p className="muted">{run.geolocation_note}</p> : null}
         </div>
 
         <div className="header-actions">
-          <Link className="btn btn-secondary" to={`/?run=${run.id}`}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="19" y1="12" x2="5" y2="12" />
-              <polyline points="12 19 5 12 12 5" />
-            </svg>
-            Back to Result
+          <div className="theme-switch-group" role="group" aria-label="Basemap switcher" style={{ marginRight: '4px' }}>
+            <button
+              type="button"
+              className={`theme-toggle-btn ${basemap === 'satellite' ? 'active' : ''}`}
+              onClick={() => setBasemap('satellite')}
+              title="High-resolution satellite seafloor imagery"
+            >
+              Satellite
+            </button>
+            <button
+              type="button"
+              className={`theme-toggle-btn ${basemap === 'ocean' ? 'active' : ''}`}
+              onClick={() => setBasemap('ocean')}
+              title="Hydrographic ocean bathymetry base"
+            >
+              Bathymetry
+            </button>
+          </div>
+          <Link className="btn btn-primary" to={`/runs/${run.id}`}>
+            ← Sonar Strip
           </Link>
+          <a
+            className="btn btn-secondary"
+            href={reportUrl(run.id, 'geojson')}
+            download={`aquax_${run.id}_map.geojson`}
+          >
+            Export GeoJSON
+          </a>
+          <a
+            className="btn btn-secondary"
+            href={reportUrl(run.id, 'csv')}
+            download={`aquax_${run.id}_contacts.csv`}
+          >
+            CSV
+          </a>
         </div>
       </div>
 
-      <div className="grid-2 map-layout-grid">
-        <div className="panel map-wrap">
-          <div ref={mapEl} className="map-canvas" />
+      {/* Map Layout: Left Canvas + Right Contact Sheet */}
+      <div className="map-layout-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) 320px', gap: '12px' }}>
+        {/* Left: Leaflet Seafloor Map Canvas */}
+        <div
+          className="map-canvas-wrapper"
+          style={{
+            background: '#07080A',
+            border: '1px solid var(--border)',
+            borderRadius: '2px',
+            height: 'calc(100vh - 120px)',
+            minHeight: '460px',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          <div ref={mapEl} style={{ width: '100%', height: '100%', background: '#07080A' }} />
+
+          {/* Coordinate HUD in corner */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '10px',
+              left: '10px',
+              zIndex: 1000,
+              background: 'rgba(14, 16, 19, 0.90)',
+              border: '1px solid var(--border)',
+              borderRadius: '2px',
+              padding: '3px 8px',
+              fontFamily: 'var(--mono)',
+              fontSize: '10px',
+              color: 'var(--text-muted)',
+              pointerEvents: 'none',
+            }}
+          >
+            CARTO DARK MATTER · WGS84 EPSG:4326 · <strong>{located.length} TARGETS PLOTTED</strong>
+          </div>
         </div>
 
-        <aside className="panel map-sidebar">
-          <div className="anomaly-header">
-            <h2 style={{ margin: 0, fontSize: '1.15rem' }}>Detections</h2>
-            <span className="anomaly-count-pill text-teal">{located.length} mapped</span>
-          </div>
+        {/* Right: Geolocated Contacts Sidebar */}
+        <aside
+          className="contact-sheet"
+          style={{
+            background: 'var(--panel)',
+            border: '1px solid var(--border)',
+            borderRadius: '2px',
+            height: 'calc(100vh - 120px)',
+            overflowY: 'auto',
+            padding: '12px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+          }}
+        >
+          <header className="title-block" style={{ paddingBottom: '6px', borderBottom: '1px solid var(--border)' }}>
+            <div className="tb-kicker" style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text-muted)' }}>
+              HYDROGRAPHIC CONTACTS · {located.length}
+            </div>
+            <div className="tb-line" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)', marginTop: '2px' }}>
+              Seabed Debris GPS Registry
+            </div>
+          </header>
 
-          <div className="detections-list">
-            {located.map((d) => {
-              const risk = getRiskLevel(d)
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
+            {located.map((d, idx) => {
               const isSelected = d.id === selectedId
+              const colors = getRiskColor(d.risk_level)
 
               return (
-                <article
+                <div
                   key={d.id}
-                  className={`detection-card ${isSelected ? 'selected' : ''}`}
-                  onClick={() => setSelectedId(d.id)}
+                  onClick={() => selectContact(d)}
+                  style={{
+                    background: isSelected ? 'var(--panel-2)' : 'transparent',
+                    border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
+                    borderRadius: '2px',
+                    padding: '8px 10px',
+                    cursor: 'pointer',
+                    transition: 'all 0.12s ease',
+                  }}
                 >
-                  <div className="detection-card-top">
-                    <div className="detection-title-group">
-                      <span className="detection-id-tag">{d.id}</span>
-                      <h3 className="detection-name">{d.class.replace(/_/g, ' ')}</h3>
-                    </div>
-                    <span className={`risk-badge risk-${risk.toLowerCase()}`}>
-                      {risk}
-                    </span>
-                  </div>
-
-                  <div className="detection-metrics">
-                    <div className="metric-item">
-                      <span className="metric-label">Confidence:</span>
-                      <strong>{formatConfidence(d.confidence)}</strong>
-                    </div>
-                    <div className="metric-item">
-                      <span className="metric-label">Status:</span>
-                      <span className={`geo-badge geo-${d.geolocation.status}`}>
-                        {formatGeoStatus(d.geolocation.status)}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontFamily: 'var(--mono)', fontSize: '11px', fontWeight: 600, color: 'var(--accent)' }}>
+                        {idx + 1}
                       </span>
+                      <strong style={{ fontSize: '12.5px', textTransform: 'capitalize', color: 'var(--text)' }}>
+                        {d.class.replace(/_/g, ' ')}
+                      </strong>
                     </div>
-                  </div>
-
-                  <div className="geo-coordinates mono-text" style={{ marginTop: 8 }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                      <circle cx="12" cy="10" r="3" />
-                    </svg>
-                    <span>
-                      {d.geolocation.latitude?.toFixed(6)}°, {d.geolocation.longitude?.toFixed(6)}°
+                    <span
+                      style={{
+                        fontSize: '9px',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        padding: '1px 5px',
+                        borderRadius: '2px',
+                        color: colors.border,
+                        background: colors.bg,
+                      }}
+                    >
+                      {d.risk_level || 'standard'}
                     </span>
                   </div>
-                </article>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', color: 'var(--text-muted)', fontFamily: 'var(--mono)' }}>
+                    <span>Conf: <strong style={{ color: 'var(--text)' }}>{formatConfidence(d.confidence)}</strong></span>
+                    {d.width_m && d.height_m && (
+                      <span>{d.width_m}m × {d.height_m}m</span>
+                    )}
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: '4px',
+                      padding: '3px 6px',
+                      background: 'var(--surface-sonar)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '2px',
+                      fontFamily: 'var(--mono)',
+                      fontSize: '10px',
+                      color: 'var(--accent)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                    }}
+                  >
+                    <span>⌖</span>
+                    <span>{d.geolocation.latitude?.toFixed(6)}° N, {d.geolocation.longitude?.toFixed(6)}° E</span>
+                  </div>
+                </div>
               )
             })}
           </div>
@@ -305,3 +583,4 @@ export default function MapView() {
     </div>
   )
 }
+

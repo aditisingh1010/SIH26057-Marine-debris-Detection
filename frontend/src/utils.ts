@@ -3,18 +3,24 @@ import type { Detection, RiskLevel } from './types'
 export function getRiskLevel(detection: Detection): RiskLevel {
   if (detection.risk_level) {
     const r = detection.risk_level.toLowerCase()
-    if (r === 'high' || r === 'critical') return 'High'
+    if (r === 'critical') return 'Critical'
+    if (r === 'high') return 'High'
     if (r === 'medium') return 'Medium'
     if (r === 'low') return 'Low'
   }
   const cls = (detection.class || '').toLowerCase()
   if (
+    cls.includes('ghost_pot') ||
     cls.includes('hazard') ||
     cls.includes('mine') ||
-    cls.includes('net') ||
-    cls.includes('chemical') ||
-    cls.includes('container') ||
+    cls.includes('net')
+  ) {
+    return 'Critical'
+  }
+  if (
     cls.includes('wreck') ||
+    cls.includes('shipwreck') ||
+    cls.includes('container') ||
     cls.includes('explosive')
   ) {
     return 'High'
@@ -30,14 +36,16 @@ export function getRiskLevel(detection: Detection): RiskLevel {
 
 export function getRiskBadgeClass(level: RiskLevel): string {
   switch (level) {
+    case 'Critical':
+      return 'badge-risk critical'
     case 'High':
-      return 'risk-badge risk-high'
+      return 'badge-risk high'
     case 'Medium':
-      return 'risk-badge risk-medium'
+      return 'badge-risk medium'
     case 'Low':
-      return 'risk-badge risk-low'
+      return 'badge-risk low'
     default:
-      return 'risk-badge'
+      return 'badge-risk'
   }
 }
 

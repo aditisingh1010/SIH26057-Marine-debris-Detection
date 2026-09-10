@@ -1,4 +1,4 @@
-﻿import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { Component, type ErrorInfo, type ReactNode } from 'react'
 
 type Props = { children: ReactNode }
 type State = { error: Error | null }
@@ -17,19 +17,24 @@ export default class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.error) {
       return (
-        <div style={{ padding: '2rem', fontFamily: 'Georgia, serif', color: '#1c1917' }}>
-          <h1 style={{ fontSize: '1.4rem' }}>AquaX hit an error</h1>
-          <pre style={{ whiteSpace: 'pre-wrap' }}>{this.state.error.message}</pre>
+        <div style={{ padding: '2.5rem', fontFamily: 'var(--sans)', color: 'var(--text)', background: 'var(--bg)', minHeight: '100vh' }}>
+          <h1 style={{ fontFamily: 'var(--serif)', fontSize: '1.5rem', fontWeight: 600, color: 'var(--text)', marginBottom: '0.75rem' }}>
+            AquaX encountered an issue
+          </h1>
+          <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'var(--mono)', fontSize: '12px', background: 'var(--panel)', border: '1px solid var(--border)', padding: '12px', borderRadius: '3px', color: 'var(--text-muted)' }}>
+            {this.state.error.message}
+          </pre>
           <p>
             <button
               type="button"
+              className="btn btn-primary"
               onClick={() => {
                 this.setState({ error: null })
                 window.location.href = '/'
               }}
-              style={{ marginTop: '1rem', padding: '8px 14px', cursor: 'pointer' }}
+              style={{ marginTop: '1rem' }}
             >
-              Reload Detect
+              Reload Workstation
             </button>
           </p>
         </div>

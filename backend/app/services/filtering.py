@@ -51,7 +51,13 @@ def _shadow_overlap_and_dimensions(
 
     overlapping_zone = None
     for zone in shadow_zones:
-        if _overlap_fraction(bbox, zone) >= 0.20:
+        if _overlap_fraction(bbox, zone) >= 0.10:
+            overlapping_zone = zone
+            break
+        zx, zy, zw, zh = _box_xywh(zone)
+        dist_x = max(0, max(x, zx) - min(x + w, zx + zw))
+        dist_y = max(0, max(y, zy) - min(y + h, zy + zh))
+        if dist_x <= max(w, 50) and dist_y <= max(h, 50):
             overlapping_zone = zone
             break
 
@@ -89,6 +95,22 @@ def _review_priority(conf: float, risk_level: str, in_shadow: bool) -> str:
     if conf < DEMO_CONF_THRESHOLD:
         return "review"
     return "standard"
+
+
+def compute_risk_profile(class_name: str, confidence: float) -> tuple[str, float, str]:
+    c = str(class_name or "").lower().replace(" ", "_")
+    if any(k in c for k in ["ghost", "net", "pot", "fishing"]):
+        return "critical", 0.95, "Ecological hazard: Abandoned fishing gear actively entangles benthic wildlife and damages reefs."
+    elif any(k in c for k in ["shipwreck", "wreck"]):
+        return "high", 0.85, "Navigational collision hazard for deep-draft marine traffic; potential submerged wreckage structure."
+    elif "container" in c:
+        return "high", 0.80, "Submerged shipping container; severe hull breach & snag hazard."
+    elif any(k in c for k in ["pipe", "pipeline", "cable"]):
+        return "medium", 0.65, "Submerged critical infrastructure corridor; anchor-snag and integrity hazard."
+    else:
+        if confidence >= 0.60:
+            return "medium", 0.50, "Anthropogenic seafloor debris; seabed ecological contamination."
+        return "low", 0.30, "Minor acoustic anomaly or low-density seafloor debris."
 
 
 def filter_detections(
@@ -133,22 +155,29 @@ def filter_detections(
             and min_aspect_ratio <= aspect_ratio <= max_aspect_ratio
         )
 
-        # Per-class physical sensitivity thresholds (derived from AUV acoustic recommendations)
         cls_name = str(det.get("class", "")).lower()
+        risk_lvl, risk_scr, risk_rsn = compute_risk_profile(cls_name, conf)
+
+        # Per-class physical sensitivity thresholds (derived from AUV acoustic recommendations)
         effective_min_conf = conf_threshold
         if cls_name == "seafloor_debris":
-            # If candidate has verified acoustic shadow or we are in survey mode (conf_threshold <= 0.15)
             has_acoustic_shadow = bool(det.get("shadow_verified", False) or in_shadow)
             if conf_threshold <= 0.15:
                 effective_min_conf = conf_threshold
             else:
                 effective_min_conf = max(conf_threshold, 0.25 if has_acoustic_shadow else 0.40)
         elif cls_name == "shipwreck":
-            # Shipwrecks are large macro objects; allow lower initial detection to be caught
             effective_min_conf = min(conf_threshold, 0.20)
 
+        # Center X distance from nadir center
+        center_x = (float(bbox.get("x", 0)) + float(bbox.get("x2", float(bbox.get("x", 0)) + w))) / 2.0 if "x2" in bbox else float(bbox.get("x", 0)) + w / 2.0
+        nadir_dist = abs(center_x - (image_width / 2.0))
+        is_nadir_artifact = (nadir_dist < (image_width * 0.02)) and (aspect_ratio > 4.0 or h > image_height * 0.5)
+
         rejection_reason = None
-        if conf < effective_min_conf:
+        if is_nadir_artifact:
+            rejection_reason = "Candidate located in central nadir water-column blanking track"
+        elif conf < effective_min_conf:
             rejection_reason = f"Confidence {conf:.2f} below effective threshold {effective_min_conf:.2f} for {cls_name}"
         elif box_area < min_area:
             rejection_reason = f"Area {box_area:.0f}px² below min threshold {min_area:.0f}px²"
@@ -161,6 +190,10 @@ def filter_detections(
             )
 
         det_copy = dict(det)
+        det_copy["risk_level"] = det.get("risk_level") or risk_lvl
+        det_copy["risk_score"] = float(det.get("risk_score") or risk_scr)
+        det_copy["risk_reason"] = det.get("risk_reason") or risk_rsn
+        det_copy["shadow_verified"] = bool(in_shadow or det.get("shadow_verified", False))
         det_copy["passed_filter"] = rejection_reason is None
         det_copy["rejection_reason"] = rejection_reason
         det_copy["acoustic_shadow_overlap"] = in_shadow
@@ -169,8 +202,15 @@ def filter_detections(
         det_copy["would_pass_demo"] = bool(geometry_ok and conf >= DEMO_CONF_THRESHOLD)
         det_copy["would_pass_survey"] = bool(geometry_ok and conf >= SURVEY_CONF_THRESHOLD)
         det_copy["review_priority"] = _review_priority(
-            conf, str(det.get("risk_level", "low")), in_shadow
+            conf, str(det_copy["risk_level"]), in_shadow
         )
+        det_copy["evidence"] = {
+            "yolo_confidence": round(conf * 100, 1),
+            "shadow_verified": "VERIFIED" if det_copy["shadow_verified"] else "NOT DETECTED",
+            "target_morphology": "MATCH" if geometry_ok else "IRREGULAR",
+            "size_estimate": "VALID" if (shadow_len_m or det_copy.get("width_m")) else "ESTIMATED",
+            "overall_confidence": round(min(99.0, (conf * 0.75 + (0.20 if det_copy["shadow_verified"] else 0.05)) * 100), 1),
+        }
 
         processed_raw.append(det_copy)
         if rejection_reason is None:

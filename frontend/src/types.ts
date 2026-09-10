@@ -1,6 +1,6 @@
 export type GeoStatus = "computed" | "survey_position_only" | "unavailable";
 
-export type RiskLevel = "High" | "Medium" | "Low";
+export type RiskLevel = "Critical" | "High" | "Medium" | "Low";
 
 export interface BBox {
   x: number;
@@ -42,10 +42,19 @@ export interface Detection {
   height_m?: number | null;
   estimated_height_m?: number | null;
   shadow_length_m?: number | null;
+  shadow_verified?: boolean;
   acoustic_shadow_overlap?: boolean;
   would_pass_demo?: boolean;
   would_pass_survey?: boolean;
   review_priority?: string;
+  risk_reason?: string | null;
+  evidence?: {
+    yolo_confidence: number;
+    shadow_verified: string;
+    target_morphology: string;
+    size_estimate: string;
+    overall_confidence: number;
+  };
 }
 
 export interface OperatorBriefing {
@@ -81,9 +90,11 @@ export interface RunResult {
   shadow_zones: ShadowZone[];
   geolocation_available?: boolean;
   geolocation_note?: string;
+  metadata?: Record<string, any>;
   annotated_image_url?: string;
   json_report_url?: string;
   csv_report_url?: string;
+  geojson_report_url?: string;
 }
 
 export interface RunSummary {

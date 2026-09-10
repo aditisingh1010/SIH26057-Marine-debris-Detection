@@ -46,8 +46,6 @@ export default function DetectionList() {
         <a href={reportUrl(run.id, 'json')}>JSON</a>
         {' · '}
         <a href={reportUrl(run.id, 'csv')}>CSV</a>
-        {' · '}
-        <Link to={located > 0 ? `/map?run=${run.id}` : '/map'}>Map</Link>
       </p>
       <h1 className="sheet-title">{run.filename}</h1>
       <p className="lede">

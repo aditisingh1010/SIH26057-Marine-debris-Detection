@@ -1138,3 +1138,62 @@
   font-weight: 700;
 }
 
+/* 1-Click Sample Chips */
+.sample-chips {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 4px 0 8px;
+}
+
+.sample-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--fill-1);
+  color: var(--text);
+  font-family: var(--sans);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.sample-chip:hover {
+  background: var(--fill-2);
+  border-color: var(--text);
+}
+
+.sample-chip.active {
+  background: var(--fill-2);
+  border-color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--text);
+}
+
+.sample-chip-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.sample-chip-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sample-chip-title {
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sample-chip-sub {
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
+

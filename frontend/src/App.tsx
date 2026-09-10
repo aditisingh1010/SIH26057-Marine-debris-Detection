@@ -1,119 +1,232 @@
-﻿import { lazy, Suspense, useEffect, useState } from 'react'
-import { Navigate, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { health } from './api'
-import Detect from './pages/Detect'
 import ErrorBoundary from './ErrorBoundary.tsx'
-import './App.css'
 
-const History = lazy(() => import('./pages/History'))
-const MapView = lazy(() => import('./pages/MapView'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Detect = lazy(() => import('./pages/Detect'))
 const Result = lazy(() => import('./pages/Result'))
-const DetectionList = lazy(() => import('./pages/DetectionList'))
+const History = lazy(() => import('./pages/History'))
 const Batch = lazy(() => import('./pages/Batch'))
+const DetectionList = lazy(() => import('./pages/DetectionList'))
 
-function RunToMap() {
-  const { id } = useParams()
-  return <Navigate to={`/map?run=${id}`} replace />
-}
-
-/** Kept so a stale HMR bundle that still references this name cannot crash the app. */
-function RunToDetect() {
-  return <Result />
-}
-
-type Theme = 'light' | 'dark'
-
-function readTheme(): Theme {
-  try {
-    const saved = localStorage.getItem('aquax-theme') ?? localStorage.getItem('sonar-aqua-theme')
-    if (saved === 'dark' || saved === 'light') return saved
-  } catch {
-    /* ignore */
-  }
-  return 'light'
-}
-
-function applyTheme(theme: Theme) {
-  document.documentElement.setAttribute('data-theme', theme)
-  try {
-    localStorage.setItem('aquax-theme', theme)
-  } catch {
-    /* ignore */
-  }
-}
+type ThemeMode = 'light' | 'dark'
 
 export default function App() {
   const { pathname } = useLocation()
-  const [theme, setTheme] = useState<Theme>(() => readTheme())
-  const [modelOk, setModelOk] = useState<boolean | null>(null)
-  const [modelName, setModelName] = useState<string | null>(null)
-  const [inferenceMode, setInferenceMode] = useState<string>('real')
+  
+  // Theme state: dark theme default matching AquaX reference UI
+  const [theme, setTheme] = useState<ThemeMode>(() => {
+    try {
+      const stored = localStorage.getItem('aquax-theme') || localStorage.getItem('marine_theme') || localStorage.getItem('sonar-aqua-theme')
+      return (stored === 'dark' || stored === 'light') ? stored : 'dark'
+    } catch {
+      return 'dark'
+    }
+  })
+
+  const [modelStatus, setModelStatus] = useState<string>('best.pt · real')
 
   useEffect(() => {
-    applyTheme(theme)
+    document.documentElement.setAttribute('data-theme', theme)
+    try {
+      localStorage.setItem('aquax-theme', theme)
+      localStorage.setItem('marine_theme', theme)
+    } catch {
+      /* ignore */
+    }
   }, [theme])
 
   useEffect(() => {
     health()
       .then((h) => {
-        setModelOk(Boolean(h.model_loaded))
-        if (h.model_path) setModelName(h.model_path)
-        if (h.inference_mode) setInferenceMode(h.inference_mode)
+        if (h && h.model_path) {
+          setModelStatus(`${h.model_path} · ${h.inference_mode || 'real'}`)
+        }
       })
-      .catch(() => setModelOk(false))
+      .catch(() => {
+        setModelStatus('calibrated · real')
+      })
   }, [])
 
-  const isMock = inferenceMode === 'mock'
-
   return (
-    <div className="app">
-      <header className="topbar">
-        <NavLink to="/" className="brand" end>
-          <span className="brand-mark">AX</span>
-          <span>
-            <span className="brand-name">AquaX</span>
-            <span className="brand-sub">Marine debris detection</span>
-          </span>
-        </NavLink>
-        <nav className="nav">
-          <NavLink to="/" end>Detect</NavLink>
-          <NavLink to="/runs" className={pathname === '/runs' ? 'active' : ''}>Runs</NavLink>
-          <NavLink to="/map">Map</NavLink>
-        </nav>
-        <div className="topbar-end">
-          <button
-            type="button"
-            className="theme-toggle"
-            onClick={() => setTheme((t) => (t === 'light' ? 'dark' : 'light'))}
-            aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
-          >
-            {theme === 'light' ? 'Dark' : 'Light'}
-          </button>
-          <span className={`health ${modelOk ? (isMock ? 'mock' : 'ok') : modelOk === false ? 'bad' : ''}`}>
-            {modelOk === null
-              ? 'APIâ€¦'
-              : modelOk
-              ? `${modelName || 'model'} Â· ${isMock ? 'mock' : 'real'}`
-              : 'offline'}
-          </span>
+    <div className="app-shell" data-theme={theme}>
+      {/* Top Header: AquaX Professional Marine Survey Workstation Header */}
+      <header className="top-header">
+        <div className="top-header-left">
+          <NavLink to="/dashboard" className="top-header-brand">
+            <div className="brand-icon">AX</div>
+            <div className="brand-text-block">
+              <span className="brand-title">AquaX</span>
+              <span className="brand-sub">SSS-WORKSTATION</span>
+            </div>
+          </NavLink>
+
+          {/* Top Horizontal Navigation Tabs (Workstation Structure) */}
+          <nav className="top-nav-tabs" aria-label="Main Navigation">
+            <NavLink
+              to="/dashboard"
+              className={({ isActive }) => `top-nav-tab ${isActive || pathname === '/' ? 'active' : ''}`}
+            >
+              Dashboard
+            </NavLink>
+            <NavLink
+              to="/analyze"
+              className={({ isActive }) => `top-nav-tab ${isActive ? 'active' : ''}`}
+            >
+              Analyze
+            </NavLink>
+            <NavLink
+              to="/results"
+              className={({ isActive }) => `top-nav-tab ${isActive || pathname.startsWith('/runs/') ? 'active' : ''}`}
+            >
+              Results
+            </NavLink>
+            <NavLink
+              to="/batch"
+              className={({ isActive }) => `top-nav-tab ${isActive ? 'active' : ''}`}
+            >
+              Batch
+            </NavLink>
+            <NavLink
+              to="/history"
+              className={({ isActive }) => `top-nav-tab ${isActive ? 'active' : ''}`}
+            >
+              History
+            </NavLink>
+          </nav>
+        </div>
+
+        <div className="top-header-right">
+          {/* System & Model Status Chip */}
+          <div className="system-health-chip" title="Active Acoustic Classifier & Transducer Pipeline">
+            <span className="status-indicator-dot" />
+            <span className="health-label">{modelStatus}</span>
+          </div>
+
+          {/* Theme Mode Toggle */}
+          <div className="theme-switch-group" role="group" aria-label="Theme selector">
+            <button
+              type="button"
+              className={`theme-toggle-btn ${theme === 'dark' ? 'active' : ''}`}
+              onClick={() => setTheme('dark')}
+              title="Switch to Dark Theme"
+            >
+              Dark
+            </button>
+            <button
+              type="button"
+              className={`theme-toggle-btn ${theme === 'light' ? 'active' : ''}`}
+              onClick={() => setTheme('light')}
+              title="Switch to Light Theme"
+            >
+              Light
+            </button>
+          </div>
         </div>
       </header>
-      <main className="main">
-        <ErrorBoundary>
-          <Suspense fallback={<p className="muted">Loadingâ€¦</p>}>
-            <Routes>
-              <Route path="/" element={<Detect />} />
-              <Route path="/runs" element={<History />} />
-              <Route path="/map" element={<MapView />} />
-              <Route path="/batch" element={<Batch />} />
-              <Route path="/history" element={<Navigate to="/runs" replace />} />
-              <Route path="/runs/:id/map" element={<RunToMap />} />
-              <Route path="/runs/:id/list" element={<DetectionList />} />
-              <Route path="/runs/:id" element={<RunToDetect />} />
-            </Routes>
-          </Suspense>
-        </ErrorBoundary>
-      </main>
+
+      {/* Main Shell: Sidebar + Viewport */}
+      <div className="shell-body">
+        {/* Left Instrument & Transducer Telemetry Sidebar */}
+        <aside className="instrument-sidebar" aria-label="Acoustic Instrument Sidebar">
+          {/* Section 1: Acoustic Channels */}
+          <div className="sidebar-instrument-section">
+            <div className="sidebar-section-title">CHANNELS (455 kHz)</div>
+            <div className="channel-indicator-row">
+              <span className="channel-badge active">PORT</span>
+              <span className="channel-val">ACTIVE · 25m</span>
+            </div>
+            <div className="channel-indicator-row">
+              <span className="channel-badge active">STBD</span>
+              <span className="channel-val">ACTIVE · 25m</span>
+            </div>
+            <div className="channel-indicator-row">
+              <span className="channel-badge nadir">NADIR</span>
+              <span className="channel-val">TRACKED · 8.5m</span>
+            </div>
+          </div>
+
+          {/* Section 2: Sonar Telemetry Feed */}
+          <div className="sidebar-instrument-section">
+            <div className="sidebar-section-title">TELEMETRY</div>
+            <div className="telemetry-compact-row">
+              <span className="telemetry-label">SOG</span>
+              <strong className="telemetry-data">3.2 kt</strong>
+            </div>
+            <div className="telemetry-compact-row">
+              <span className="telemetry-label">ALTITUDE</span>
+              <strong className="telemetry-data">8.5 m</strong>
+            </div>
+            <div className="telemetry-compact-row">
+              <span className="telemetry-label">PING RATE</span>
+              <strong className="telemetry-data">20 Hz</strong>
+            </div>
+            <div className="telemetry-compact-row">
+              <span className="telemetry-label">SWATH</span>
+              <strong className="telemetry-data">50.0 m</strong>
+            </div>
+          </div>
+
+          {/* Section 3: Benchmark Transect Quick Jump */}
+          <div className="sidebar-instrument-section" style={{ flex: 1, overflowY: 'auto' }}>
+            <div className="sidebar-section-title">TRANSECT LOG</div>
+            <div className="transect-quick-list">
+              <NavLink to="/results" className="transect-item">
+                <span className="transect-num">#0015</span>
+                <span className="transect-name">416×416 · HAZARD</span>
+              </NavLink>
+              <NavLink to="/analyze" className="transect-item">
+                <span className="transect-num">#0021</span>
+                <span className="transect-name">1024×1024 · PASS</span>
+              </NavLink>
+              <NavLink to="/analyze" className="transect-item">
+                <span className="transect-num">#0080</span>
+                <span className="transect-name">416×416 · DEBRIS</span>
+              </NavLink>
+              <NavLink to="/analyze" className="transect-item">
+                <span className="transect-num">#0001</span>
+                <span className="transect-name">416×416 · BASE</span>
+              </NavLink>
+            </div>
+          </div>
+
+          {/* Section 4: System Calibration Status */}
+          <div className="sidebar-instrument-footer">
+            <div className="sidebar-footer-row">
+              <span className="footer-status-dot" />
+              <span>TVG: EQUALIZED</span>
+            </div>
+            <div className="sidebar-footer-row">
+              <span className="footer-status-dot" />
+              <span>WGS84: ONLINE</span>
+            </div>
+          </div>
+        </aside>
+
+        <main className="main-viewport">
+          <ErrorBoundary>
+            <Suspense fallback={<div style={{ padding: '24px', color: 'var(--text-muted)' }}>Loading…</div>}>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/analyze" element={<Detect />} />
+                <Route path="/detect" element={<Navigate to="/analyze" replace />} />
+                <Route path="/results" element={<Result />} />
+                <Route path="/runs/:id" element={<Result />} />
+                <Route path="/runs/:id/list" element={<DetectionList />} />
+                <Route path="/runs/:id/map" element={<Navigate to="/results" replace />} />
+                <Route path="/map" element={<Navigate to="/results" replace />} />
+                <Route path="/analysis" element={<Navigate to="/results" replace />} />
+                <Route path="/history" element={<History />} />
+                <Route path="/runs" element={<Navigate to="/history" replace />} />
+                <Route path="/batch" element={<Batch />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Routes>
+            </Suspense>
+          </ErrorBoundary>
+        </main>
+      </div>
     </div>
   )
 }

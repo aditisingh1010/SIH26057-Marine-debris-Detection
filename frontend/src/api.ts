@@ -2,20 +2,37 @@ import type { BatchResult, ModelQuality, RunResult, RunSummary, SystemInfo } fro
 
 const API = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
+async function fetchApi(path: string, options?: RequestInit): Promise<Response> {
+  const url = `${API}${path}`;
+  try {
+    const res = await fetch(url, options);
+    if ((res.status === 502 || res.status === 504) && !API) {
+      throw new Error(`Proxy error ${res.status}`);
+    }
+    return res;
+  } catch (err) {
+    if (!API && typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+      const fallbackUrl = `http://127.0.0.1:8000${path}`;
+      return await fetch(fallbackUrl, options);
+    }
+    throw err;
+  }
+}
+
 export async function health() {
-  const r = await fetch(`${API}/health`);
+  const r = await fetchApi("/health");
   if (!r.ok) throw new Error("API unavailable");
   return r.json();
 }
 
 export async function getInfo(): Promise<SystemInfo> {
-  const r = await fetch(`${API}/api/v1/info`);
+  const r = await fetchApi("/api/v1/info");
   if (!r.ok) throw new Error("Info unavailable");
   return r.json();
 }
 
 export async function getQuality(): Promise<ModelQuality> {
-  const r = await fetch(`${API}/api/v1/quality`);
+  const r = await fetchApi("/api/v1/quality");
   if (!r.ok) throw new Error("Quality summary unavailable");
   return r.json();
 }
@@ -34,7 +51,7 @@ export async function detect(
     conf_threshold: String(conf),
     mode,
   });
-  const r = await fetch(`${API}/api/v1/detect?${params.toString()}`, {
+  const r = await fetchApi(`/api/v1/detect?${params.toString()}`, {
     method: "POST",
     body: form,
   });
@@ -59,18 +76,18 @@ export function annotatedImageUrl(id: string) {
   return `${API}/api/v1/runs/${id}/image/annotated`;
 }
 
-export function reportUrl(id: string, fmt: "json" | "csv") {
+export function reportUrl(id: string, fmt: "json" | "csv" | "geojson") {
   return `${API}/api/v1/runs/${id}/report.${fmt}`;
 }
 
 export async function getRun(id: string): Promise<RunResult> {
-  const r = await fetch(`${API}/api/v1/runs/${id}`);
+  const r = await fetchApi(`/api/v1/runs/${id}`);
   if (!r.ok) throw new Error("Run not found");
   return r.json();
 }
 
 export async function getRuns(): Promise<RunSummary[]> {
-  const r = await fetch(`${API}/api/v1/runs`);
+  const r = await fetchApi("/api/v1/runs");
   if (!r.ok) return [];
   return r.json();
 }
@@ -86,7 +103,7 @@ export async function detectBatch(
     conf_threshold: String(confThreshold),
     mode,
   });
-  const r = await fetch(`${API}/api/v1/detect/batch?${params.toString()}`, {
+  const r = await fetchApi(`/api/v1/detect/batch?${params.toString()}`, {
     method: "POST",
     body: form,
   });
@@ -102,3 +119,23 @@ export async function detectBatch(
   }
   return r.json();
 }
+
+export async function updateRunMetadata(runId: string, metadata: Record<string, any>): Promise<RunResult> {
+  const r = await fetchApi(`/api/v1/runs/${runId}/metadata`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(metadata),
+  });
+  if (!r.ok) {
+    let detail = r.statusText;
+    try {
+      const body = await r.json();
+      detail = body.detail || JSON.stringify(body);
+    } catch {
+      detail = await r.text();
+    }
+    throw new Error(detail);
+  }
+  return r.json();
+}
+

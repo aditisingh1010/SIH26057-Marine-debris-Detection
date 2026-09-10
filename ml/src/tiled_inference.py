@@ -1,7 +1,10 @@
 import cv2
 import numpy as np
 from typing import List, Dict, Any, Tuple, Optional
-from ultralytics import YOLO
+try:
+    from ultralytics import YOLO
+except ImportError:
+    YOLO = None
 
 class SSSSlicedInference:
     """

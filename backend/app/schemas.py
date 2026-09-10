@@ -1,4 +1,4 @@
-from typing import Literal, Optional, List
+from typing import Any, Dict, Literal, Optional, List
 from pydantic import BaseModel, Field
 
 class BBox(BaseModel):
@@ -39,10 +39,13 @@ class Detection(BaseModel):
     height_m: Optional[float] = None
     estimated_height_m: Optional[float] = None
     shadow_length_m: Optional[float] = None
+    shadow_verified: bool = False
     acoustic_shadow_overlap: bool = False
     would_pass_demo: bool = False
     would_pass_survey: bool = False
     review_priority: str = "standard"
+    risk_reason: Optional[str] = None
+    evidence: Optional[dict] = None
 
     model_config = {"populate_by_name": True}
 
@@ -81,9 +84,11 @@ class RunResult(BaseModel):
     shadow_zones: List[ShadowZone] = []
     geolocation_available: bool = False
     geolocation_note: str = "Geolocation unavailable: sonar metadata not provided."
+    metadata: Optional[Dict[str, Any]] = None
     annotated_image_url: Optional[str] = None
     json_report_url: Optional[str] = None
     csv_report_url: Optional[str] = None
+    geojson_report_url: Optional[str] = None
 
 class BatchResult(BaseModel):
     runs: List[RunResult]
